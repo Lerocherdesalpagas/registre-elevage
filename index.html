@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Registre">
+<title>Registre d'Élevage</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+:root{--bg:#0a0f1a;--bg2:#0f172a;--bg3:#1e293b;--bg4:#334155;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--g:#16a34a;--g2:#4ade80;--r:#dc2626;--b:#3b82f6;--a:#f59e0b;--sab:env(safe-area-inset-bottom,0px);--sat:env(safe-area-inset-top,0px)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100dvh;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit;font-size:16px!important;border-radius:8px}
+
+header{background:rgba(15,23,42,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--bg3);position:sticky;top:0;z-index:100;padding:calc(8px + var(--sat)) 12px 8px;display:flex;align-items:center;gap:8px}
+.htit{font-weight:800;font-size:15px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hsync{font-size:10px;padding:4px 8px;border-radius:6px;border:none;font-weight:600}
+.hsync.ok{background:rgba(22,163,74,.15);color:var(--g2)}
+.hsync.wait{background:rgba(245,158,11,.15);color:var(--a)}
+.hsync.err{background:rgba(220,38,38,.15);color:#fca5a5}
+
+nav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.97);backdrop-filter:blur(12px);border-top:1px solid var(--bg3);display:flex;z-index:100;padding-bottom:var(--sab)}
+nav button{flex:1;background:none;border:none;padding:6px 2px 4px;display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--tx3);font-size:9px;font-weight:600;transition:color .15s}
+nav button.on{color:var(--g2)}
+nav .ic{font-size:22px;line-height:1}
+
+.pg{max-width:800px;margin:0 auto;padding:14px 12px calc(72px + var(--sab))}
+h1{font-size:19px;font-weight:800}
+.sub{color:var(--tx3);font-size:12px;margin-bottom:14px}
+.cd{background:rgba(30,41,59,.45);border:1px solid var(--bg3);border-radius:12px;padding:14px;margin-bottom:10px}
+
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.sg .cd{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.sn{font-size:22px;font-weight:800}.sl{font-size:9px;color:var(--tx3);font-weight:700;text-transform:uppercase}
+
+.al{border-radius:10px;padding:12px;font-size:12px;margin-bottom:10px}
+.aok{background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);color:var(--g2)}
+.aw{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#fca5a5}
+
+.btn{padding:10px 16px;border:none;border-radius:10px;font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:44px;transition:all .15s}
+.bp{background:var(--g);color:#fff}.bs2{background:var(--bg4);color:var(--tx)}.bd{background:var(--r);color:#fff}
+.bsm{padding:6px 10px;font-size:12px;min-height:36px}
+.bi{background:none;border:none;color:var(--tx3);padding:8px;font-size:16px;min-width:36px;min-height:36px;display:inline-flex;align-items:center;justify-content:center}
+.tb{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.tba{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+.fi{margin-bottom:10px}
+.fi label{display:block;font-size:10px;color:var(--tx2);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+.fi input,.fi select,.fi textarea{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--bg4);color:var(--tx);outline:none}
+.fi input:focus,.fi select:focus,.fi textarea:focus{border-color:var(--b)}
+.fr{display:flex;flex-wrap:wrap;gap:0 10px}.fh{flex:1 1 45%;min-width:130px}
+@media(max-width:400px){.fh{flex:1 1 100%}}
+
+.tg{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700}
+.tc{background:rgba(59,130,246,.15);color:#60a5fa}
+.tv{background:rgba(245,158,11,.15);color:#fbbf24}
+.to{background:rgba(100,116,139,.15);color:#94a3b8}
+
+.hcard{padding:10px 12px}
+.hc-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.hc-date{color:var(--tx3);font-size:11px;font-weight:600}
+.hc-name{font-weight:700;font-size:13px}
+.hc-det{font-size:11px;color:var(--tx2);line-height:1.4;margin-top:4px}
+.hc-docs{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.hc-docs img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--bg4);cursor:pointer}
+.hc-act{display:flex;gap:2px;margin-left:auto;flex-shrink:0}
+
+.acard{padding:0;overflow:hidden}
+.ar{display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer}
+.ar .em{font-size:24px;flex-shrink:0}
+.ar .inf{flex:1;min-width:0}
+.ar .nm{font-weight:700;font-size:14px}
+.ar .mt{color:var(--tx3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adtl{padding:8px 14px 14px;border-top:1px solid var(--bg3)}
+.adtl-r{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--tx2);padding:4px 0}
+.adtl-r b{color:var(--tx);font-weight:600}
+.adtl-h{font-size:11px;padding:4px 0;border-bottom:1px solid var(--bg3);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+.chcard{padding:14px}
+.chtit{font-size:14px;font-weight:700}
+.chsub{color:var(--tx3);font-size:11px;margin-bottom:8px}
+.chw{position:relative;height:220px}
+
+.mo{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center}
+.mdl{background:var(--bg2);border:1px solid var(--bg3);border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:90dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px calc(16px + var(--sab))}
+.mdh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.mdh h2{font-size:17px;font-weight:700}
+.mdf{display:flex;gap:8px;margin-top:14px}.mdf .btn{flex:1}
+
+.cps{background:rgba(30,41,59,.5);border:1px solid var(--bg3);border-radius:10px;padding:10px;margin:6px 0}
+.cpt{font-size:10px;color:var(--tx3);font-weight:700;text-transform:uppercase;margin-bottom:6px}
+
+.doc-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.doc-thumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--bg4)}
+.doc-thumb img{width:100%;height:100%;object-fit:cover}
+.doc-thumb .rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);border:none;color:#fff;width:20px;height:20px;border-radius:50%;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.doc-add{width:64px;height:64px;border-radius:8px;border:2px dashed var(--bg4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--tx3);font-size:20px;cursor:pointer;background:none}
+
+.lb{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lb img{max-width:95%;max-height:90%;object-fit:contain;border-radius:8px}
+
+.hd{display:none!important}
+
+@media print{
+body{background:#fff!important;color:#000!important;padding:0}
+header,nav,.np{display:none!important}
+.pg{max-width:100%;padding:8px}
+#p-health{display:block!important}#p-home,#p-animals,#p-charts{display:none!important}
+.ph{display:block!important;text-align:center;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
+.ph h1{font-size:16pt;color:#000}.ph p{font-size:9pt;color:#555}
+.cd{background:#fff!important;border:1px solid #ccc!important}
+.tg{border:1px solid #999;background:#eee!important;color:#000!important}
+}
+.ph{display:none}
+
+@media(min-width:768px){
+.sg{grid-template-columns:repeat(5,1fr)}
+.chw{height:280px}
+nav{position:static;border-top:none;border-bottom:1px solid var(--bg3);padding-bottom:0}
+nav button{flex-direction:row;gap:6px;padding:10px 16px;font-size:12px}
+body{padding-bottom:0}
+.mo{align-items:center}.mdl{border-radius:16px;max-height:85vh}
+}
+</style>
+</head>
+<body>
+<header>
+<span style="font-size:22px">🦙</span>
+<span class="htit">Le Rocher des Alpagas</span>
+<span class="hsync wait" id="syncSt">⏳ Connexion...</span>
+</header>
+
+<nav>
+<button class="on" data-p="home" onclick="go('home')"><span class="ic">🏠</span>Accueil</button>
+<button data-p="animals" onclick="go('animals')"><span class="ic">🐐</span>Animaux</button>
+<button data-p="health" onclick="go('health')"><span class="ic">💉</span>Sanitaire</button>
+<button data-p="charts" onclick="go('charts')"><span class="ic">📊</span>Copro</button>
+</nav>
+
+<main>
+<div id="p-home" class="pg">
+<h1>Registre d'élevage</h1><p class="sub">Gestion du cheptel caprins & camélidés</p>
+<div class="sg" id="sgrid"></div><div id="alrt"></div>
+</div>
+
+<div id="p-animals" class="pg hd">
+<div class="tb"><h1>Animaux</h1>
+<div class="tba np">
+<select id="fsp" class="btn bsm bs2" onchange="rA()" style="font-size:12px"><option value="all">Tous</option><option value="Caprin">Caprins</option><option value="Camélidé">Camélidés</option></select>
+<button class="btn bsm bp" onclick="oAM()">＋</button></div></div>
+<div id="alist"><div style="color:var(--tx3);text-align:center;padding:30px">Chargement...</div></div>
+</div>
+
+<div id="p-health" class="pg hd">
+<div class="ph"><h1>🦙 Le Rocher des Alpagas — Suivi Sanitaire</h1><p id="pdate"></p></div>
+<div class="tb"><h1>Suivi sanitaire</h1>
+<div class="tba np">
+<select id="hfa" class="btn bsm bs2" onchange="rH()" style="font-size:12px"><option value="all">Tous</option></select>
+<select id="hft" class="btn bsm bs2" onchange="rH()" style="font-size:12px"><option value="all">Types</option><option>Copro</option><option>Vermifuge</option><option>Vaccination</option><option>Autre</option></select>
+<button class="btn bsm bs2" onclick="doPrint()">🖨</button>
+<button class="btn bsm bp" onclick="oHM()">＋</button></div></div>
+<div id="hlist"></div>
+</div>
+
+<div id="p-charts" class="pg hd">
+<div class="tb"><h1>Suivi coprologique</h1>
+<select id="caf" class="btn bsm bs2 np" onchange="rC()" style="font-size:12px"></select></div>
+<div id="ccon"></div>
+</div>
+</main>
+
+<!-- MODALS -->
+<div id="am" class="mo hd" onclick="cm('am')"><div class="mdl" onclick="event.stopPropagation()">
+<div class="mdh"><h2 id="amt">Nouvel animal</h2><button class="bi" onclick="cm('am')">✕</button></div>
+<form onsubmit="sA(event)">
+<div class="fr"><div class="fi fh"><label>N° Animal</label><input id="ai" required></div><div class="fi fh"><label>Nom</label><input id="an" required></div></div>
+<div class="fr"><div class="fi fh"><label>Espèce</label><select id="as"><option value="Caprin">Caprin</option><option value="Camélidé">Camélidé</option></select></div><div class="fi fh"><label>Race</label><input id="ab"></div></div>
+<div class="fr"><div class="fi fh"><label>Sexe</label><select id="ax"><option value="M">Mâle</option><option value="F">Femelle</option></select></div><div class="fi fh"><label>Couleur</label><input id="ac"></div></div>
+<div class="fr"><div class="fi fh"><label>Naissance</label><input type="date" id="adb"></div><div class="fi fh"><label>Entrée</label><input type="date" id="ade"></div></div>
+<div class="fi"><label>Origine</label><input id="ao"></div>
+<div class="mdf"><button type="button" class="btn bs2" onclick="cm('am')">Annuler</button><button type="submit" class="btn bp" id="asb">Ajouter</button></div>
+</form></div></div>
+
+<div id="hm" class="mo hd" onclick="cm('hm')"><div class="mdl" onclick="event.stopPropagation()">
+<div class="mdh"><h2 id="hmt">Nouveau suivi</h2><button class="bi" onclick="cm('hm')">✕</button></div>
+<form onsubmit="sH(event)">
+<div class="fr"><div class="fi fh"><label>Date</label><input type="date" id="hd" required></div><div class="fi fh"><label>Animal</label><select id="ha" required></select></div></div>
+<div class="fr"><div class="fi fh"><label>Type</label><select id="ht" onchange="tHF()"><option>Copro</option><option>Vermifuge</option><option>Vaccination</option><option>Consultation Vétérinaire</option><option>Résultat Prise de Sang</option><option>Autre</option></select></div><div class="fi fh"><label>Intervenant</label><input id="hp"></div></div>
+<div id="hpf"><div class="fr"><div class="fi fh"><label>Produit</label><input id="hpr"></div><div class="fi fh"><label>Dose</label><input id="hdo"></div></div><div class="fr"><div class="fi fh"><label>Voie</label><input id="hro"></div><div class="fi fh"><label>Lot</label><input id="hlo"></div></div><div class="fi" style="max-width:180px"><label>Délai att. (j)</label><input id="hwi"></div></div>
+<div id="hcf" class="cps"><div class="cpt">Résultats copro (OPG)</div><div class="fr"><div class="fi fh"><label>G. Douve</label><input type="number" min="0" id="hgD" value="0" style="border-left:3px solid #b91c1c"></div><div class="fi fh"><label>Douve</label><input type="number" min="0" id="hdv" value="0" style="border-left:3px solid #d97706"></div></div><div class="fr"><div class="fi fh"><label>Cocc</label><input type="number" min="0" id="hcc" value="0" style="border-left:3px solid #7c3aed"></div><div class="fi fh"><label>Strongles P</label><input type="number" min="0" id="hsP" value="0" style="border-left:3px solid #059669"></div></div><div class="fr"><div class="fi fh"><label>Strongles I</label><input type="number" min="0" id="hsI" value="0" style="border-left:3px solid #2563eb"></div></div></div>
+<div class="fi"><label>Notes</label><textarea id="hno" rows="2"></textarea></div>
+<div class="fi"><label>📷 Photos / Documents</label>
+<div class="doc-grid" id="docGrid"></div>
+<input type="file" id="docIn" accept="image/*" capture="environment" multiple style="display:none" onchange="addPhotos(event)">
+</div>
+<div id="uploadProg" class="hd" style="font-size:11px;color:var(--a);margin-top:4px">⏳ Upload en cours...</div>
+<div class="mdf"><button type="button" class="btn bs2" onclick="cm('hm')">Annuler</button><button type="submit" class="btn bp" id="hsb">Ajouter</button></div>
+</form></div></div>
+
+<div id="cfm" class="mo hd" onclick="cm('cfm')"><div class="mdl" onclick="event.stopPropagation()" style="max-width:400px">
+<div class="mdh"><h2>Confirmer</h2><button class="bi" onclick="cm('cfm')">✕</button></div>
+<p id="cft" style="color:var(--tx2);margin-bottom:14px;font-size:14px"></p>
+<div class="mdf"><button class="btn bs2" onclick="cm('cfm')">Annuler</button><button class="btn bd" id="cfo">Supprimer</button></div>
+</div></div>
+
+<div id="lightbox" class="lb hd" onclick="this.classList.add('hd')"><img id="lbimg" src=""></div>
+
+<script>
+// ══════════════════════════════════════
+// 🔧 CONFIGURATION SUPABASE
+// ⬇️ COLLE TES CLÉS ICI ⬇️
+const SUPABASE_URL = 'https://krsyagwhhyokrtnoukek.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_TDB5CJQGV5k63NVKBwwobA_fWEPgJYS';
+// ⬆️ FIN DE LA CONFIG ⬆️
+// ══════════════════════════════════════
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $=id=>document.getElementById(id);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fd=d=>{if(!d)return'';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0]};
+const cm=id=>$(id).classList.add('hd');
+const PAR=[{k:'g_douve',l:'G. Douve',c:'#b91c1c'},{k:'douve',l:'Douve',c:'#d97706'},{k:'cocc',l:'Cocc',c:'#7c3aed'},{k:'strongles_p',l:'Strongles P',c:'#059669'},{k:'strongles_i',l:'Strongles I',c:'#2563eb'}];
+
+let animals=[],health=[];
+let CI={},eAid=null,eHid=null,exA=null,curPage='home';
+let pendingPhotos=[], existingPhotos=[], removedPhotos=[];
+
+function gA(aid){return animals.find(a=>a.animal_id===aid)}
+function gN(aid){const a=gA(aid);return a?a.name+' ('+a.animal_id+')':aid}
+function setSync(s,t){const e=$('syncSt');e.className='hsync '+s;e.textContent=t}
+function photoUrl(path){return SUPABASE_URL+'/storage/v1/object/public/photos/'+path}
+
+// ══════════════════════════════════════
+// IMAGE COMPRESSION
+// ══════════════════════════════════════
+function compressImg(file,maxW=1200,quality=0.7){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement('canvas');
+        let w=img.width,h=img.height;
+        if(w>maxW){h=h*(maxW/w);w=maxW}
+        c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        c.toBlob(blob=>resolve(blob),'image/jpeg',quality);
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ══════════════════════════════════════
+// DATA LOADING
+// ══════════════════════════════════════
+async function loadAll(){
+  setSync('wait','⏳ Chargement...');
+  try{
+    const[aRes,hRes]=await Promise.all([
+      sb.from('animals').select('*').order('name'),
+      sb.from('health').select('*').order('date',{ascending:false})
+    ]);
+    if(aRes.error)throw aRes.error;
+    if(hRes.error)throw hRes.error;
+    animals=aRes.data||[];health=hRes.data||[];
+    setSync('ok','✓ Sync');
+    refresh();
+  }catch(e){
+    setSync('err','❌ Erreur');console.error(e);
+    // If empty, seed
+    if(animals.length===0)await seedData();
+  }
+}
+
+// REALTIME
+function setupRealtime(){
+  sb.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'animals'},()=>loadAll())
+  .on('postgres_changes',{event:'*',schema:'public',table:'health'},()=>loadAll()).subscribe();
+}
+
+function refresh(){
+  if(curPage==='home')rHome();if(curPage==='animals')rA();
+  if(curPage==='health')rH();if(curPage==='charts')rC();
+}
+
+// ══════════════════════════════════════
+// NAV
+// ══════════════════════════════════════
+function go(p){
+  curPage=p;
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  ['home','animals','health','charts'].forEach(x=>$('p-'+x).classList.toggle('hd',x!==p));
+  refresh();window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════
+// HOME
+// ══════════════════════════════════════
+function rHome(){
+  const ca=animals.filter(a=>a.species==='Caprin').length,cm2=animals.filter(a=>a.species==='Camélidé').length;
+  $('sgrid').innerHTML=[
+    {l:'Total',v:animals.length,c:'#3b82f6',e:'🐾'},{l:'Suivis',v:health.length,c:'#10b981',e:'💉'},
+    {l:'Caprins',v:ca,c:'#f59e0b',e:'🐐'},{l:'Camélidés',v:cm2,c:'#8b5cf6',e:'🦙'},
+    {l:'Copros',v:health.filter(h=>h.type==='Copro').length,c:'#ef4444',e:'🔬'}
+  ].map(s=>'<div class="cd"><div class="st"><span style="font-size:22px">'+s.e+'</span><div><div class="sn" style="color:'+s.c+'">'+s.v+'</div><div class="sl">'+s.l+'</div></div></div></div>').join('');
+  const last={};health.filter(h=>h.type==='Copro').sort((a,b)=>a.date.localeCompare(b.date)).forEach(h=>{last[h.animal_id]=h});
+  const al=[];Object.entries(last).forEach(([id,h])=>{const t=(h.g_douve||0)+(h.douve||0)+(h.cocc||0)+(h.strongles_p||0)+(h.strongles_i||0);if(t>0)al.push({id,t,d:h.date})});
+  $('alrt').innerHTML=al.length?'<div class="al aw"><div><b>⚠ Copros positifs :</b><br>'+al.map(a=>'• <b>'+gN(a.id)+'</b> — '+a.t+' OPG ('+fd(a.d)+')').join('<br>')+'</div></div>':'<div class="al aok">✅ Tous les derniers copros à 0 !</div>';
+}
+
+// ══════════════════════════════════════
+// ANIMALS
+// ══════════════════════════════════════
+function rA(){
+  const f=$('fsp').value;const list=f==='all'?animals:animals.filter(a=>a.species===f);
+  $('alist').innerHTML=list.map(a=>{
+    const recs=health.filter(h=>h.animal_id===a.animal_id).sort((x,y)=>y.date.localeCompare(x.date));
+    const op=exA===a.animal_id,em=a.species==='Caprin'?'🐐':'🦙';
+    let det='';if(op){
+      det='<div class="adtl"><div class="adtl-r">'+(a.birth_date?'<span>Né(e) <b>'+fd(a.birth_date)+'</b></span>':'')+(a.entry_date?'<span>Entré(e) <b>'+fd(a.entry_date)+'</b></span>':'')+(a.origin?'<span>'+a.origin+'</span>':'')+(a.color?'<span>'+a.color+'</span>':'')+'</div>'+
+        (recs.length?recs.slice(0,5).map(r=>{const tc=r.type==='Copro'?'tc':r.type==='Vermifuge'?'tv':'to';let inf=r.type==='Copro'?'GD:'+(r.g_douve??0)+' D:'+(r.douve??0)+' C:'+(r.cocc??0)+' SP:'+(r.strongles_p??0)+' SI:'+(r.strongles_i??0):r.product||'';return'<div class="adtl-h"><span style="color:var(--tx3);width:62px;flex-shrink:0">'+fd(r.date)+'</span><span class="tg '+tc+'">'+r.type+'</span><span style="color:var(--tx2);font-size:10px">'+inf+'</span></div>'}).join(''):'<p style="color:var(--tx3);font-size:11px;padding:6px 0">Aucun suivi</p>')+'</div>'}
+    return'<div class="cd acard"><div class="ar" onclick="exA=exA===\''+a.animal_id+'\'?null:\''+a.animal_id+'\';rA()"><span style="color:var(--tx3);font-size:12px">'+(op?'▾':'▸')+'</span><span class="em">'+em+'</span><div class="inf"><div class="nm">'+a.name+' <span style="color:var(--tx3);font-weight:400;font-size:12px">('+a.animal_id+')</span></div><div class="mt">'+a.breed+' • '+(a.sex==='M'?'♂':'♀')+'</div></div><span style="color:var(--tx3);font-size:10px">'+recs.length+'</span><button class="bi np" onclick="event.stopPropagation();oAM(\''+a.id+'\')">✎</button><button class="bi np" onclick="event.stopPropagation();cDA(\''+a.id+'\',\''+a.name+'\',\''+a.animal_id+'\')">🗑</button></div>'+det+'</div>'}).join('')||'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun animal</p>';
+}
+
+function oAM(uuid){
+  const a=uuid?animals.find(x=>x.id===uuid):null;eAid=uuid||null;
+  $('amt').textContent=a?'Modifier':'Nouvel animal';$('asb').textContent=a?'OK':'Ajouter';
+  $('ai').value=a?.animal_id||'';$('ai').disabled=!!a;$('an').value=a?.name||'';
+  $('as').value=a?.species||'Caprin';$('ab').value=a?.breed||'';$('ax').value=a?.sex||'M';
+  $('ac').value=a?.color||'';$('adb').value=a?.birth_date||'';$('ade').value=a?.entry_date||'';$('ao').value=a?.origin||'';
+  $('am').classList.remove('hd');
+}
+
+async function sA(e){
+  e.preventDefault();setSync('wait','⏳');
+  const o={animal_id:$('ai').value.trim(),name:$('an').value.trim(),species:$('as').value,breed:$('ab').value.trim(),sex:$('ax').value,color:$('ac').value.trim(),birth_date:$('adb').value,entry_date:$('ade').value,origin:$('ao').value.trim()};
+  try{
+    if(eAid){const{error}=await sb.from('animals').update(o).eq('id',eAid);if(error)throw error}
+    else{const{error}=await sb.from('animals').insert(o);if(error)throw error}
+    cm('am');eAid=null;await loadAll();
+  }catch(err){alert('Erreur: '+err.message);setSync('err','❌')}
+}
+
+function cDA(uuid,name,aid){
+  $('cft').innerHTML='Supprimer <b style="color:#f87171">'+name+'</b> et tous ses suivis ?';
+  $('cfo').onclick=async()=>{
+    setSync('wait','⏳');
+    await sb.from('health').delete().eq('animal_id',aid);
+    await sb.from('animals').delete().eq('id',uuid);
+    cm('cfm');await loadAll();
+  };$('cfm').classList.remove('hd');
+}
+
+// ══════════════════════════════════════
+// HEALTH
+// ══════════════════════════════════════
+function rH(){
+  const af=$('hfa'),cur=af.value;
+  af.innerHTML='<option value="all">Tous</option>'+animals.map(a=>'<option value="'+a.animal_id+'">'+a.name+'</option>').join('');
+  if(cur)af.value=cur;
+  let recs=[...health];
+  if(af.value!=='all')recs=recs.filter(r=>r.animal_id===af.value);
+  const ft=$('hft').value;if(ft!=='all')recs=recs.filter(r=>r.type===ft);
+  $('hlist').innerHTML=recs.map(r=>{
+    const tc=r.type==='Copro'?'tc':r.type==='Vermifuge'?'tv':'to';
+    let det='';
+    if(r.type==='Copro')det='GD:'+(r.g_douve??0)+' D:'+(r.douve??0)+' C:'+(r.cocc??0)+' SP:'+(r.strongles_p??0)+' SI:'+(r.strongles_i??0);
+    else{let p=[];if(r.product)p.push(r.product);if(r.dose)p.push(r.dose);if(r.route)p.push(r.route);if(r.lot)p.push('Lot:'+r.lot);if(r.withdrawal)p.push('Att:'+r.withdrawal+'j');det=p.join(' • ')}
+    if(r.notes)det+=(det?' — ':'')+r.notes;
+    const imgs=(r.photos||[]).map(p=>{const u=photoUrl(p);return'<img src="'+u+'" onclick="event.stopPropagation();showLB(\''+u+'\')" loading="lazy">'}).join('');
+    return'<div class="cd hcard"><div class="hc-top"><span class="hc-date">'+fd(r.date)+'</span><span class="hc-name">'+gN(r.animal_id)+'</span><span class="tg '+tc+'">'+r.type+'</span><span class="hc-act np"><button class="bi" onclick="oHM(\''+r.id+'\')">✎</button><button class="bi" onclick="cDH(\''+r.id+'\',\''+r.type+'\',\''+r.date+'\',\''+r.animal_id+'\')">🗑</button></span></div>'+(det?'<div class="hc-det">'+det+'</div>':'')+(imgs?'<div class="hc-docs">'+imgs+'</div>':'')+'</div>'}).join('')||'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun suivi</p>';
+}
+
+function tHF(){$('hcf').classList.toggle('hd',$('ht').value!=='Copro');$('hpf').classList.toggle('hd',$('ht').value==='Copro')}
+
+function oHM(uuid){
+  eHid=uuid||null;pendingPhotos=[];removedPhotos=[];
+  $('ha').innerHTML=animals.map(a=>'<option value="'+a.animal_id+'">'+a.name+' ('+a.animal_id+')</option>').join('');
+  const r=uuid?health.find(h=>h.id===uuid):null;
+  $('hmt').textContent=r?'Modifier':'Nouveau suivi';$('hsb').textContent=r?'OK':'Ajouter';
+  $('hd').value=r?.date||new Date().toISOString().slice(0,10);$('ha').value=r?.animal_id||animals[0]?.animal_id||'';
+  $('ht').value=r?.type||'Copro';$('hp').value=r?.practitioner||'';
+  $('hpr').value=r?.product||'';$('hdo').value=r?.dose||'';$('hro').value=r?.route||'';
+  $('hlo').value=r?.lot||'';$('hwi').value=r?.withdrawal||'';
+  $('hgD').value=r?.g_douve??0;$('hdv').value=r?.douve??0;$('hcc').value=r?.cocc??0;
+  $('hsP').value=r?.strongles_p??0;$('hsI').value=r?.strongles_i??0;
+  $('hno').value=r?.notes||'';
+  existingPhotos=[...(r?.photos||[])];
+  renderDocGrid();tHF();$('hm').classList.remove('hd');$('uploadProg').classList.add('hd');
+}
+
+function renderDocGrid(){
+  const g=$('docGrid');
+  const eHtml=existingPhotos.map((p,i)=>'<div class="doc-thumb"><img src="'+photoUrl(p)+'"><button class="rm" onclick="rmExPhoto('+i+')">✕</button></div>').join('');
+  const pHtml=pendingPhotos.map((p,i)=>'<div class="doc-thumb"><img src="'+p.preview+'"><button class="rm" onclick="rmPendPhoto('+i+')">✕</button></div>').join('');
+  g.innerHTML=eHtml+pHtml+'<button type="button" class="doc-add" onclick="$(\'docIn\').click()">📷<span style="font-size:9px">Photo</span></button>';
+}
+
+function addPhotos(e){Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>{pendingPhotos.push({file:f,preview:ev.target.result});renderDocGrid()};r.readAsDataURL(f)});e.target.value=''}
+function rmPendPhoto(i){pendingPhotos.splice(i,1);renderDocGrid()}
+function rmExPhoto(i){removedPhotos.push(existingPhotos[i]);existingPhotos.splice(i,1);renderDocGrid()}
+
+async function sH(e){
+  e.preventDefault();setSync('wait','⏳');$('uploadProg').classList.remove('hd');
+  const iC=$('ht').value==='Copro';
+  try{
+    // Upload new photos
+    let photos=[...existingPhotos];
+    for(const p of pendingPhotos){
+      const compressed=await compressImg(p.file);
+      const path='health/'+uid()+'.jpg';
+      const{error}=await sb.storage.from('photos').upload(path,compressed,{contentType:'image/jpeg'});
+      if(error)throw error;
+      photos.push(path);
+    }
+    // Delete removed photos
+    if(removedPhotos.length){await sb.storage.from('photos').remove(removedPhotos)}
+
+    const o={date:$('hd').value,animal_id:$('ha').value,type:$('ht').value,practitioner:$('hp').value.trim(),
+      product:iC?'':$('hpr').value.trim(),dose:iC?'':$('hdo').value.trim(),route:iC?'':$('hro').value.trim(),
+      lot:iC?'':$('hlo').value.trim(),withdrawal:iC?'':$('hwi').value.trim(),
+      g_douve:iC?+$('hgD').value||0:0,douve:iC?+$('hdv').value||0:0,cocc:iC?+$('hcc').value||0:0,
+      strongles_p:iC?+$('hsP').value||0:0,strongles_i:iC?+$('hsI').value||0:0,
+      notes:$('hno').value.trim(),photos};
+
+    if(eHid){const{error}=await sb.from('health').update(o).eq('id',eHid);if(error)throw error}
+    else{const{error}=await sb.from('health').insert(o);if(error)throw error}
+
+    pendingPhotos=[];removedPhotos=[];cm('hm');eHid=null;await loadAll();
+  }catch(err){alert('Erreur: '+err.message);setSync('err','❌')}
+  $('uploadProg').classList.add('hd');
+}
+
+function cDH(uuid,type,date,aid){
+  $('cft').innerHTML='Supprimer <b style="color:#f87171">'+type+'</b> du '+fd(date)+' pour '+gN(aid)+' ?';
+  $('cfo').onclick=async()=>{setSync('wait','⏳');await sb.from('health').delete().eq('id',uuid);cm('cfm');await loadAll()};
+  $('cfm').classList.remove('hd');
+}
+
+function doPrint(){$('pdate').textContent='Imprimé le '+new Date().toLocaleDateString('fr-FR');window.print()}
+function showLB(u){$('lbimg').src=u;$('lightbox').classList.remove('hd')}
+
+// ══════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════
+function rC(){
+  const sel=$('caf'),cur=sel.value;
+  sel.innerHTML='<option value="all">Tous</option>'+animals.map(a=>'<option value="'+a.animal_id+'">'+a.name+'</option>').join('');
+  if(cur)sel.value=cur;
+  const con=$('ccon');con.innerHTML='';Object.values(CI).forEach(c=>c.destroy());CI={};
+  const list=sel.value==='all'?animals:animals.filter(a=>a.animal_id===sel.value);
+  list.forEach(animal=>{
+    const recs=health.filter(h=>h.type==='Copro'&&h.animal_id===animal.animal_id).sort((a,b)=>a.date.localeCompare(b.date));
+    const em=animal.species==='Caprin'?'🐐':'🦙',div=document.createElement('div');div.className='cd chcard';
+    if(!recs.length){div.innerHTML='<span class="chtit">'+em+' '+animal.name+'</span><span style="color:var(--tx3);font-size:12px"> — Aucun copro</span>';con.appendChild(div);return}
+    const cid='c'+animal.animal_id.replace(/\W/g,'');
+    div.innerHTML='<div class="chtit">'+em+' '+animal.name+'</div><div class="chsub">'+recs.length+' analyse'+(recs.length>1?'s':'')+'</div><div class="chw"><canvas id="'+cid+'"></canvas></div>';
+    con.appendChild(div);
+    const ds=PAR.map(p=>({label:p.l,borderColor:p.c,backgroundColor:p.c+'22',pointBackgroundColor:p.c,pointRadius:4,pointHoverRadius:6,borderWidth:2,tension:.15,data:recs.map(r=>({x:new Date(r.date),y:r[p.k]??0}))}));
+    try{CI[animal.animal_id]=new Chart(document.getElementById(cid).getContext('2d'),{type:'line',data:{datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{x:{type:'time',time:{tooltipFormat:'dd/MM/yyyy',displayFormats:{day:'dd/MM',month:'MMM yy'}},ticks:{color:'#475569',font:{size:10},maxRotation:45},grid:{color:'#1e293b'}},y:{beginAtZero:true,ticks:{color:'#475569',font:{size:10}},grid:{color:'#1e293b'}}},plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:10},usePointStyle:true,padding:10,boxWidth:8}},tooltip:{backgroundColor:'#1e293b',borderColor:'#334155',borderWidth:1,titleColor:'#94a3b8',bodyColor:'#e2e8f0',padding:10,callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' OPG'}}}}})}catch(e){console.error(e)}
+  });
+}
+
+// ══════════════════════════════════════
+// SEED DEFAULT DATA
+// ══════════════════════════════════════
+async function seedData(){
+  setSync('wait','⏳ Initialisation...');
+  const defA=[
+    {animal_id:'1',name:'Pompom',species:'Caprin',breed:'Fossé',sex:'M',birth_date:'2018-07-15',entry_date:'2018-11-15',origin:'Leboncoin',color:'Brun'},
+    {animal_id:'2',name:'DuDu',species:'Caprin',breed:'Fossé',sex:'M',birth_date:'2018-07-15',entry_date:'2018-11-15',origin:'Leboncoin',color:'Noir et Blanc'},
+    {animal_id:'3',name:'Neige',species:'Caprin',breed:'Saanen',sex:'F',birth_date:'2018-07-20',entry_date:'2019-10-20',origin:'Leboncoin',color:'Blanche'},
+    {animal_id:'4',name:'Sendji',species:'Caprin',breed:'Poitevine',sex:'F',birth_date:'2022-07-10',entry_date:'2023-01-11',origin:'Don Coulais',color:'Brune/Blanche'},
+    {animal_id:'C1',name:'Okaya',species:'Camélidé',breed:'Alpaga Huacaya',sex:'F',birth_date:'2018-06-07',entry_date:'2019-02-02',origin:'Emeriau Guy',color:'Blanche'},
+    {animal_id:'C2',name:'Japke',species:'Camélidé',breed:'Alpaga Huacaya',sex:'F',birth_date:'2018-09-08',entry_date:'2024-08-19',origin:'FABER Claar Atlantis',color:'Blanche'},
+    {animal_id:'C3',name:'Mina',species:'Camélidé',breed:'Lama Classique',sex:'F',birth_date:'2019-06-17',entry_date:'2025-10-22',origin:'Colline Bleue',color:''},
+    {animal_id:'C4',name:'Sheldon',species:'Camélidé',breed:'Lama Classique',sex:'M',birth_date:'2023-03-01',entry_date:'2025-10-22',origin:'Colline Bleue',color:''},
+    {animal_id:'C5',name:'Mischa',species:'Camélidé',breed:'Lama Classique',sex:'M',birth_date:'2023-04-08',entry_date:'2025-10-22',origin:'Colline Bleue',color:''}
+  ];
+  const{error:ae}=await sb.from('animals').insert(defA);if(ae){console.error(ae);return}
+
+  const defH=[
+    {date:'2025-10-19',animal_id:'1',type:'Vermifuge',product:'Biamintic',dose:'12,5ml',route:'Buvable',lot:'2481463',withdrawal:'3',practitioner:'Vanessa/Mickaël',notes:'Prescription véto',photos:[]},
+    {date:'2025-10-19',animal_id:'2',type:'Vermifuge',product:'Biamintic',dose:'12,5ml',route:'Buvable',lot:'2481463',withdrawal:'3',practitioner:'Vanessa/Mickaël',notes:'Prescription véto',photos:[]},
+    {date:'2025-11-07',animal_id:'4',type:'Copro',practitioner:'Vanessa/Dr Laborie',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:50,photos:[]},
+    {date:'2025-11-07',animal_id:'C3',type:'Copro',practitioner:'Vanessa/Dr Laborie',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2025-11-07',animal_id:'C5',type:'Copro',practitioner:'Vanessa/Dr Laborie',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:450,photos:[]},
+    {date:'2025-11-07',animal_id:'C4',type:'Copro',practitioner:'Vanessa/Dr Laborie',g_douve:0,douve:30,cocc:0,strongles_p:0,strongles_i:15,photos:[]},
+    {date:'2025-11-07',animal_id:'C2',type:'Copro',practitioner:'Vanessa/Dr Laborie',g_douve:0,douve:0,cocc:200,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2025-11-07',animal_id:'C1',type:'Copro',practitioner:'Vanessa/Dr Laborie',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2025-11-14',animal_id:'C5',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:50,douve:0,cocc:0,strongles_p:0,strongles_i:250,photos:[]},
+    {date:'2025-11-14',animal_id:'C4',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:50,photos:[]},
+    {date:'2025-11-14',animal_id:'C1',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2025-11-14',animal_id:'1',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2025-11-14',animal_id:'3',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:50,photos:[]},
+    {date:'2025-11-14',animal_id:'4',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2026-02-11',animal_id:'C1',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2026-02-11',animal_id:'C2',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2026-02-11',animal_id:'C3',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2026-02-11',animal_id:'C4',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2026-02-11',animal_id:'C5',type:'Copro',practitioner:'Vanessa/Alliance',g_douve:0,douve:0,cocc:0,strongles_p:0,strongles_i:0,photos:[]},
+    {date:'2026-01-21',animal_id:'C3',type:'Vermifuge',product:'SupaVerm',dose:'50 ml',route:'Buvable',lot:'24CQ289',withdrawal:'65',practitioner:'Vanessa/Mickaël',notes:'Ord N° 297341',photos:[]},
+    {date:'2026-01-21',animal_id:'C4',type:'Vermifuge',product:'SupaVerm',dose:'40 ml',route:'Buvable',lot:'24CQ289',withdrawal:'65',practitioner:'Vanessa/Mickaël',notes:'Ord N° 297341',photos:[]},
+    {date:'2026-01-21',animal_id:'C5',type:'Vermifuge',product:'SupaVerm',dose:'30 ml',route:'Buvable',lot:'24CQ289',withdrawal:'65',practitioner:'Vanessa/Mickaël',notes:'Ord N° 297341',photos:[]}
+  ];
+  await sb.from('health').insert(defH);
+  await loadAll();
+}
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+loadAll();setupRealtime();rHome();
+</script>
+</body>
+</html>
