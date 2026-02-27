@@ -968,6 +968,28 @@ async function seedData(){
     {date:'2026-01-21',animal_id:'C5',type:'Vermifuge',product:'SupaVerm',dose:'30 ml',route:'Buvable',lot:'24CQ289',withdrawal:'65',practitioner:'Vanessa/Mickaël',notes:'Ord N° 297341',photos:[]}
   ];
   await sb.from('health').insert(defH);
+
+  const MIL='29, rue de Milvin 85290 Saint-Laurent-Sur-Sèvre';
+  const defL=[
+    {date:'2019-02-02',animal_id:'C1',location:MIL,notes:'Arrivée'},
+    {date:'2024-08-19',animal_id:'C2',location:MIL,notes:'Arrivée'},
+    {date:'2025-07-30',animal_id:'1',location:MIL,notes:''},
+    {date:'2025-07-30',animal_id:'2',location:MIL,notes:''},
+    {date:'2025-07-30',animal_id:'3',location:MIL,notes:''},
+    {date:'2025-07-30',animal_id:'4',location:MIL,notes:''},
+    {date:'2025-11-07',animal_id:'C3',location:MIL,notes:'Arrivée'},
+    {date:'2025-11-07',animal_id:'C4',location:MIL,notes:'Arrivée'},
+    {date:'2025-11-07',animal_id:'C5',location:MIL,notes:'Arrivée'},
+    {date:'2025-12-11',animal_id:'1',location:'BUCHET',notes:'Écopâturage'},
+    {date:'2025-12-11',animal_id:'2',location:'BUCHET',notes:'Écopâturage'},
+    {date:'2025-12-11',animal_id:'3',location:'BUCHET',notes:'Écopâturage'},
+    {date:'2025-12-11',animal_id:'4',location:'BUCHET',notes:'Écopâturage'},
+    {date:'2026-01-04',animal_id:'1',location:MIL,notes:'Retour'},
+    {date:'2026-01-04',animal_id:'2',location:MIL,notes:'Retour'},
+    {date:'2026-01-04',animal_id:'3',location:MIL,notes:'Retour'},
+    {date:'2026-01-04',animal_id:'4',location:MIL,notes:'Retour'}
+  ];
+  await sb.from('locations').insert(defL);
   await loadAll();
 }
 
