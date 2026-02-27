@@ -86,6 +86,9 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 .doc-add{width:66px;height:66px;border-radius:14px;border:2.5px dashed var(--bg4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--tx3);font-size:20px;cursor:pointer;background:#F7FBFA;transition:all .2s}.doc-add:active{border-color:var(--pri);color:var(--pri)}
 .lb{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .lb img{max-width:95%;max-height:90%;object-fit:contain;border-radius:14px}
+body:not(.adm) .np{display:none!important}
+.bkp{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.bkp .btn{flex:1;min-width:120px;font-size:13px}
 .hd{display:none!important}
 @media print{body{background:#fff!important;color:#000!important;padding:0}header,nav,.np{display:none!important}.pg{max-width:100%;padding:8px}#p-health{display:block!important}#p-home,#p-animals,#p-charts{display:none!important}.ph{display:block!important;text-align:center;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}.ph h1{font-size:16pt;color:#000}.ph p{font-size:9pt;color:#555}.cd{background:#fff!important;box-shadow:none!important;border:1px solid #ddd!important}.tg{border:1px solid #999;background:#eee!important;color:#000!important}}.ph{display:none}
 @media(min-width:768px){.sg{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}.chw{height:280px}nav{position:static;border-bottom:1px solid var(--bg3);padding-bottom:0;box-shadow:none}nav button{flex-direction:row;gap:6px;padding:10px 16px;font-size:12px}body{padding-bottom:0}.mo{align-items:center}.mdl{border-radius:28px;max-height:85vh}}
@@ -95,6 +98,7 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 <header>
 <span style="font-size:24px">🦙</span>
 <span class="htit">Le Rocher des Alpagas</span>
+<button class="bi" id="lockBtn" onclick="toggleAdmin()" style="color:#fff;font-size:18px">🔒</button>
 <span class="hsync wait" id="syncSt">⏳ Connexion...</span>
 </header>
 
@@ -115,38 +119,48 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 <p style="color:rgba(255,255,255,.8);font-size:12px;font-weight:700;margin-top:2px">Le Rocher des Alpagas — Gestion du cheptel</p>
 </div>
 <div class="sg" id="sgrid"></div><div id="vaccAlrt"></div><div id="coproAlrt"></div>
+<div class="cd" style="margin-top:8px">
+<div style="font-weight:800;font-size:14px;margin-bottom:8px">💾 Sauvegarde des données</div>
+<div style="font-size:11px;color:var(--tx2);margin-bottom:10px;font-weight:600">Exportez vos données en local pour les conserver en sécurité.</div>
+<div class="bkp">
+<button class="btn bs2 bsm" onclick="exportData()">📥 Exporter JSON</button>
+<button class="btn bs2 bsm" onclick="exportCSV()">📊 Exporter CSV</button>
+<button class="btn bs2 bsm np" onclick="$('importIn').click()">📤 Importer</button>
+</div>
+<input type="file" id="importIn" accept=".json" style="display:none" onchange="importData(event)">
+</div>
 </div>
 
 <div id="p-animals" class="pg hd">
 <div class="tb"><h1>Animaux</h1>
-<div class="tba np">
+<div class="tba">
 <select id="fsp" class="btn bsm bs2" onchange="rA()" style="font-size:12px"><option value="all">Tous</option></select>
-<button class="btn bsm bp" onclick="oAM()">＋</button></div></div>
+<button class="btn bsm bp np" onclick="oAM()">＋</button></div></div>
 <div id="alist"><div style="color:var(--tx3);text-align:center;padding:30px">Chargement...</div></div>
 </div>
 
 <div id="p-health" class="pg hd">
 <div class="ph"><h1>🦙 Le Rocher des Alpagas — Suivi Sanitaire</h1><p id="pdate"></p></div>
 <div class="tb"><h1>Suivi sanitaire</h1>
-<div class="tba np">
+<div class="tba">
 <select id="hfa" class="btn bsm bs2" onchange="rH()" style="font-size:12px"><option value="all">Tous</option></select>
 <select id="hft" class="btn bsm bs2" onchange="rH()" style="font-size:12px"><option value="all">Types</option><option>Copro</option><option>Vermifuge</option><option>Vaccination</option><option>Autre</option></select>
 <button class="btn bsm bs2" onclick="doPrint()">🖨</button>
-<button class="btn bsm bp" onclick="oHM()">＋</button></div></div>
+<button class="btn bsm bp np" onclick="oHM()">＋</button></div></div>
 <div id="hlist"></div>
 </div>
 
 <div id="p-charts" class="pg hd">
 <div class="tb"><h1>Suivi coprologique</h1>
-<select id="caf" class="btn bsm bs2 np" onchange="rC()" style="font-size:12px"></select></div>
+<select id="caf" class="btn bsm bs2" onchange="rC()" style="font-size:12px"></select></div>
 <div id="ccon"></div>
 </div>
 
 <div id="p-weight" class="pg hd">
 <div class="tb"><h1>Suivi du poids</h1>
-<div class="tba np">
+<div class="tba">
 <select id="waf" class="btn bsm bs2" onchange="rW()" style="font-size:12px"></select>
-<button class="btn bsm bp" onclick="oWM()">＋</button></div></div>
+<button class="btn bsm bp np" onclick="oWM()">＋</button></div></div>
 <div id="wcon"></div>
 <div id="wlist"></div>
 </div>
@@ -221,12 +235,88 @@ let animals=[],health=[],weights=[];
 let CI={},WI={},eAid=null,eHid=null,eWid=null,exA=null,curPage='home';
 let pendingPhotos=[], existingPhotos=[], removedPhotos=[];
 
+// ══════════════════════════════════════
+// 🔒 SÉCURITÉ — CODE PIN ADMIN
+// Changez ce code pour sécuriser l'accès
+const ADMIN_PIN = '2025';
+// ══════════════════════════════════════
+let isAdmin = localStorage.getItem('registre_admin')==='1';
+
 function gA(aid){return animals.find(a=>a.animal_id===aid)}
 function gN(aid){const a=gA(aid);return a?a.name+' ('+a.animal_id+')':aid}
 function gE(sp){return EMOJI[sp]||'🐾'}
 function setSync(s,t){const e=$('syncSt');e.className='hsync '+s;e.textContent=t}
 function photoUrl(path){return SUPABASE_URL+'/storage/v1/object/public/photos/'+path}
 function today(){return new Date().toISOString().slice(0,10)}
+
+// ══════════════════════════════════════
+// 🔒 ADMIN MODE
+// ══════════════════════════════════════
+function updateAdminUI(){
+  document.body.classList.toggle('adm',isAdmin);
+  $('lockBtn').textContent=isAdmin?'🔓':'🔒';
+  $('lockBtn').title=isAdmin?'Mode admin (cliquer pour verrouiller)':'Mode lecture (cliquer pour déverrouiller)';
+}
+function toggleAdmin(){
+  if(isAdmin){
+    isAdmin=false;localStorage.removeItem('registre_admin');updateAdminUI();
+  }else{
+    const pin=prompt('🔒 Entrez le code admin :');
+    if(pin===ADMIN_PIN){isAdmin=true;localStorage.setItem('registre_admin','1');updateAdminUI()}
+    else if(pin!==null){alert('❌ Code incorrect')}
+  }
+}
+
+// ══════════════════════════════════════
+// 💾 SAUVEGARDE / RESTAURATION
+// ══════════════════════════════════════
+function exportData(){
+  const data={version:2,date:new Date().toISOString(),animals,health,weights};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download='registre-elevage-'+today()+'.json';
+  a.click();URL.revokeObjectURL(url);
+}
+
+function exportCSV(){
+  // Animals CSV
+  let csv='--- ANIMAUX ---\nID;Nom;Espèce;Race;Sexe;Couleur;Naissance;Entrée;Origine\n';
+  animals.forEach(a=>{csv+=[a.animal_id,a.name,a.species,a.breed,a.sex,a.color,a.birth_date,a.entry_date,a.origin].join(';')+'\n'});
+  // Health CSV
+  csv+='\n--- SUIVIS SANITAIRES ---\nDate;Animal;Type;Produit;Dose;Voie;Lot;Délai;Intervenant;Notes;Rappel Vaccin;G.Douve;Douve;Cocc;Strongles P;Strongles I\n';
+  health.forEach(h=>{csv+=[h.date,gN(h.animal_id),h.type,h.product,h.dose,h.route,h.lot,h.withdrawal,h.practitioner,h.notes,h.next_vaccine_date||'',h.g_douve,h.douve,h.cocc,h.strongles_p,h.strongles_i].join(';')+'\n'});
+  // Weights CSV
+  csv+='\n--- POIDS ---\nDate;Animal;Poids (kg);Notes\n';
+  weights.forEach(w=>{csv+=[w.date,gN(w.animal_id),w.weight_kg,w.notes].join(';')+'\n'});
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download='registre-elevage-'+today()+'.csv';
+  a.click();URL.revokeObjectURL(url);
+}
+
+async function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  if(!confirm('⚠️ Ceci va REMPLACER toutes les données actuelles. Continuer ?'))return;
+  try{
+    const txt=await file.text();
+    const data=JSON.parse(txt);
+    if(!data.animals||!data.health){alert('❌ Fichier invalide');return}
+    setSync('wait','⏳ Import...');
+    // Clear existing
+    await sb.from('weights').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    await sb.from('health').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    await sb.from('animals').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    // Insert
+    if(data.animals.length){const clean=data.animals.map(({id,...r})=>r);await sb.from('animals').insert(clean)}
+    if(data.health.length){const clean=data.health.map(({id,...r})=>r);await sb.from('health').insert(clean)}
+    if(data.weights&&data.weights.length){const clean=data.weights.map(({id,...r})=>r);await sb.from('weights').insert(clean)}
+    alert('✅ Import réussi ! '+data.animals.length+' animaux, '+data.health.length+' suivis'+(data.weights?' ,'+data.weights.length+' pesées':''));
+    await loadAll();
+  }catch(err){alert('❌ Erreur import: '+err.message);setSync('err','❌')}
+  e.target.value='';
+}
 
 // ══════════════════════════════════════
 // IMAGE COMPRESSION
@@ -595,7 +685,7 @@ async function seedData(){
 // ══════════════════════════════════════
 // INIT
 // ══════════════════════════════════════
-loadAll();setupRealtime();rHome();
+loadAll();setupRealtime();updateAdminUI();rHome();
 </script>
 </body>
 </html>
