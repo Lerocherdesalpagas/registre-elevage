@@ -103,6 +103,7 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 <button data-p="animals" onclick="go('animals')"><span class="ic">🐐</span>Animaux</button>
 <button data-p="health" onclick="go('health')"><span class="ic">💉</span>Sanitaire</button>
 <button data-p="charts" onclick="go('charts')"><span class="ic">📊</span>Copro</button>
+<button data-p="weight" onclick="go('weight')"><span class="ic">⚖️</span>Poids</button>
 </nav>
 
 <main>
@@ -140,6 +141,15 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 <select id="caf" class="btn bsm bs2 np" onchange="rC()" style="font-size:12px"></select></div>
 <div id="ccon"></div>
 </div>
+
+<div id="p-weight" class="pg hd">
+<div class="tb"><h1>Suivi du poids</h1>
+<div class="tba np">
+<select id="waf" class="btn bsm bs2" onchange="rW()" style="font-size:12px"></select>
+<button class="btn bsm bp" onclick="oWM()">＋</button></div></div>
+<div id="wcon"></div>
+<div id="wlist"></div>
+</div>
 </main>
 
 <!-- MODALS -->
@@ -171,6 +181,16 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 <div class="mdf"><button type="button" class="btn bs2" onclick="cm('hm')">Annuler</button><button type="submit" class="btn bp" id="hsb">Ajouter</button></div>
 </form></div></div>
 
+<!-- MODAL POIDS -->
+<div id="wm" class="mo hd" onclick="cm('wm')"><div class="mdl" onclick="event.stopPropagation()">
+<div class="mdh"><h2 id="wmt">Nouvelle pesée</h2><button class="bi" onclick="cm('wm')">✕</button></div>
+<form onsubmit="sW(event)">
+<div class="fr"><div class="fi fh"><label>Date</label><input type="date" id="wd" required></div><div class="fi fh"><label>Animal</label><select id="wa" required></select></div></div>
+<div class="fi"><label>Poids (kg)</label><input type="number" id="wk" step="0.1" min="0" required placeholder="Ex: 45.5"></div>
+<div class="fi"><label>Notes</label><textarea id="wno" rows="2" placeholder="Observation..."></textarea></div>
+<div class="mdf"><button type="button" class="btn bs2" onclick="cm('wm')">Annuler</button><button type="submit" class="btn bp" id="wsb">Ajouter</button></div>
+</form></div></div>
+
 <div id="cfm" class="mo hd" onclick="cm('cfm')"><div class="mdl" onclick="event.stopPropagation()" style="max-width:400px">
 <div class="mdh"><h2>Confirmer</h2><button class="bi" onclick="cm('cfm')">✕</button></div>
 <p id="cft" style="color:var(--tx2);margin-bottom:14px;font-size:14px"></p>
@@ -197,8 +217,8 @@ const cm=id=>$(id).classList.add('hd');
 const PAR=[{k:'g_douve',l:'G. Douve',c:'#E85D5D'},{k:'douve',l:'Douve',c:'#F5A623'},{k:'cocc',l:'Cocc',c:'#9B6DD7'},{k:'strongles_p',l:'Strongles P',c:'#2AB5A0'},{k:'strongles_i',l:'Strongles I',c:'#4A90D9'}];
 const EMOJI={'Caprin':'🐐','Camélidé':'🦙','Canin':'🐕','Félin':'🐈','Équin':'🐴','Ovin':'🐑','Bovin':'🐄','Volaille':'🐓','Porcin':'🐷','Lapin':'🐇'};
 
-let animals=[],health=[];
-let CI={},eAid=null,eHid=null,exA=null,curPage='home';
+let animals=[],health=[],weights=[];
+let CI={},WI={},eAid=null,eHid=null,eWid=null,exA=null,curPage='home';
 let pendingPhotos=[], existingPhotos=[], removedPhotos=[];
 
 function gA(aid){return animals.find(a=>a.animal_id===aid)}
@@ -236,13 +256,14 @@ function compressImg(file,maxW=1200,quality=0.7){
 async function loadAll(){
   setSync('wait','⏳ Chargement...');
   try{
-    const[aRes,hRes]=await Promise.all([
+    const[aRes,hRes,wRes]=await Promise.all([
       sb.from('animals').select('*').order('name'),
-      sb.from('health').select('*').order('date',{ascending:false})
+      sb.from('health').select('*').order('date',{ascending:false}),
+      sb.from('weights').select('*').order('date',{ascending:false})
     ]);
     if(aRes.error)throw aRes.error;
     if(hRes.error)throw hRes.error;
-    animals=aRes.data||[];health=hRes.data||[];
+    animals=aRes.data||[];health=hRes.data||[];weights=wRes.error?[]:wRes.data||[];
     setSync('ok','✓ Sync');
     updateSpeciesFilter();
     refresh();
@@ -256,12 +277,13 @@ async function loadAll(){
 // REALTIME
 function setupRealtime(){
   sb.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'animals'},()=>loadAll())
-  .on('postgres_changes',{event:'*',schema:'public',table:'health'},()=>loadAll()).subscribe();
+  .on('postgres_changes',{event:'*',schema:'public',table:'health'},()=>loadAll())
+  .on('postgres_changes',{event:'*',schema:'public',table:'weights'},()=>loadAll()).subscribe();
 }
 
 function refresh(){
   if(curPage==='home')rHome();if(curPage==='animals')rA();
-  if(curPage==='health')rH();if(curPage==='charts')rC();
+  if(curPage==='health')rH();if(curPage==='charts')rC();if(curPage==='weight')rW();
 }
 function updateSpeciesFilter(){
   const sp=[...new Set(animals.map(a=>a.species).filter(Boolean))].sort();
@@ -274,7 +296,7 @@ function updateSpeciesFilter(){
 function go(p){
   curPage=p;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
-  ['home','animals','health','charts'].forEach(x=>$('p-'+x).classList.toggle('hd',x!==p));
+  ['home','animals','health','charts','weight'].forEach(x=>$('p-'+x).classList.toggle('hd',x!==p));
   refresh();window.scrollTo(0,0);
 }
 
@@ -338,6 +360,7 @@ function cDA(uuid,name,aid){
   $('cfo').onclick=async()=>{
     setSync('wait','⏳');
     await sb.from('health').delete().eq('animal_id',aid);
+    await sb.from('weights').delete().eq('animal_id',aid);
     await sb.from('animals').delete().eq('id',uuid);
     cm('cfm');await loadAll();
   };$('cfm').classList.remove('hd');
@@ -460,6 +483,67 @@ function rC(){
     const dates=recs.map(r=>parseD(r.date).getTime());const xMin=new Date(Math.min(...dates)-7*86400000);const xMax=new Date(Math.max(...dates)+7*86400000);
     try{CI[animal.animal_id]=new Chart(document.getElementById(cid).getContext('2d'),{type:'line',data:{datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{x:{type:'time',min:recs.length===1?xMin:undefined,max:recs.length===1?xMax:undefined,time:{tooltipFormat:'dd/MM/yyyy',displayFormats:{day:'dd/MM',week:'dd/MM',month:'MMM yy'}},ticks:{color:'#8FA3A0',font:{size:10,weight:600},maxRotation:45},grid:{color:'#E8EFED'}},y:{beginAtZero:true,ticks:{color:'#8FA3A0',font:{size:10,weight:600}},grid:{color:'#E8EFED'}}},plugins:{legend:{position:'bottom',labels:{color:'#5A706D',font:{size:10,weight:600},usePointStyle:true,padding:12,boxWidth:8}},tooltip:{backgroundColor:'#fff',borderColor:'#D5DDD9',borderWidth:1,titleColor:'#1A2B2A',bodyColor:'#5A706D',padding:12,cornerRadius:10,boxPadding:4,callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' OPG'}}}}})}catch(e){console.error(e)}
   });
+}
+
+// ══════════════════════════════════════
+// WEIGHT TRACKING
+// ══════════════════════════════════════
+function rW(){
+  const weightIds=new Set(weights.map(w=>w.animal_id));
+  const weightAnimals=animals.filter(a=>weightIds.has(a.animal_id));
+  const sel=$('waf'),cur=sel.value;
+  sel.innerHTML='<option value="all">Tous</option>'+weightAnimals.map(a=>'<option value="'+a.animal_id+'">'+gE(a.species)+' '+a.name+'</option>').join('');
+  if(cur)sel.value=cur;
+  // Charts
+  const con=$('wcon');con.innerHTML='';Object.values(WI).forEach(c=>c.destroy());WI={};
+  const list=sel.value==='all'?weightAnimals:weightAnimals.filter(a=>a.animal_id===sel.value);
+  if(!list.length){con.innerHTML='<p style="color:var(--tx3);text-align:center;padding:20px">Aucun animal avec des données de poids.<br>Utilisez le bouton ＋ pour ajouter une pesée.</p>';$('wlist').innerHTML='';return}
+  list.forEach(animal=>{
+    const recs=weights.filter(w=>w.animal_id===animal.animal_id).sort((a,b)=>a.date.localeCompare(b.date));
+    if(!recs.length)return;
+    const em=gE(animal.species),wid='w'+animal.animal_id.replace(/\W/g,'');
+    const last=recs[recs.length-1],first=recs[0];
+    const diff=recs.length>1?(last.weight_kg-first.weight_kg).toFixed(1):null;
+    const diffTxt=diff!==null?(diff>0?'<span style="color:#2AB5A0">▲ +'+diff+' kg</span>':diff<0?'<span style="color:#E85D5D">▼ '+diff+' kg</span>':'<span style="color:var(--tx3)">= stable</span>'):'';
+    const div=document.createElement('div');div.className='cd chcard';
+    div.innerHTML='<div class="chtit">'+em+' '+animal.name+'</div><div class="chsub">'+recs.length+' pesée'+(recs.length>1?'s':'')+' — Dernier : <b>'+last.weight_kg+' kg</b> ('+fd(last.date)+') '+diffTxt+'</div><div class="chw"><canvas id="'+wid+'"></canvas></div>';
+    con.appendChild(div);
+    const parseD=d=>{const[y,m,day]=d.split('-');return new Date(+y,+m-1,+day,12,0,0)};
+    const ds=[{label:'Poids (kg)',borderColor:'#2AB5A0',backgroundColor:'rgba(42,181,160,.12)',pointBackgroundColor:'#2AB5A0',pointRadius:5,pointHoverRadius:7,borderWidth:2.5,tension:.3,fill:true,data:recs.map(r=>({x:parseD(r.date),y:r.weight_kg}))}];
+    const dates=recs.map(r=>parseD(r.date).getTime());const xMin=new Date(Math.min(...dates)-7*86400000);const xMax=new Date(Math.max(...dates)+7*86400000);
+    try{WI[animal.animal_id]=new Chart(document.getElementById(wid).getContext('2d'),{type:'line',data:{datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{x:{type:'time',min:recs.length===1?xMin:undefined,max:recs.length===1?xMax:undefined,time:{tooltipFormat:'dd/MM/yyyy',displayFormats:{day:'dd/MM',week:'dd/MM',month:'MMM yy'}},ticks:{color:'#8FA3A0',font:{size:10,weight:600},maxRotation:45},grid:{color:'#E8EFED'}},y:{ticks:{color:'#8FA3A0',font:{size:10,weight:600},callback:v=>v+' kg'},grid:{color:'#E8EFED'}}},plugins:{legend:{display:false},tooltip:{backgroundColor:'#fff',borderColor:'#D5DDD9',borderWidth:1,titleColor:'#1A2B2A',bodyColor:'#5A706D',padding:12,cornerRadius:10,boxPadding:4,callbacks:{label:c=>c.parsed.y+' kg'}}}}})}catch(e){console.error(e)}
+  });
+  // Weight history list
+  let wrecs=sel.value==='all'?[...weights]:weights.filter(w=>w.animal_id===sel.value);
+  wrecs.sort((a,b)=>b.date.localeCompare(a.date));
+  $('wlist').innerHTML='<h2 style="font-size:16px;font-weight:800;margin:16px 0 10px">Historique</h2>'+wrecs.slice(0,30).map(w=>{
+    return'<div class="cd hcard" style="padding:12px 16px"><div class="hc-top"><span class="hc-date">'+fd(w.date)+'</span><span class="hc-name">'+gN(w.animal_id)+'</span><span style="font-weight:900;color:var(--pri);font-size:14px">'+w.weight_kg+' kg</span><span class="hc-act np"><button class="bi" onclick="oWM(\''+w.id+'\')">✎</button><button class="bi" onclick="cDW(\''+w.id+'\',\''+w.date+'\',\''+w.animal_id+'\')">🗑</button></span></div>'+(w.notes?'<div class="hc-det">'+w.notes+'</div>':'')+'</div>'}).join('')||'';
+}
+
+function oWM(uuid){
+  eWid=uuid||null;
+  $('wa').innerHTML=animals.map(a=>'<option value="'+a.animal_id+'">'+gE(a.species)+' '+a.name+' ('+a.animal_id+')</option>').join('');
+  const r=uuid?weights.find(w=>w.id===uuid):null;
+  $('wmt').textContent=r?'Modifier':'Nouvelle pesée';$('wsb').textContent=r?'OK':'Ajouter';
+  $('wd').value=r?.date||today();$('wa').value=r?.animal_id||animals[0]?.animal_id||'';
+  $('wk').value=r?.weight_kg||'';$('wno').value=r?.notes||'';
+  $('wm').classList.remove('hd');
+}
+
+async function sW(e){
+  e.preventDefault();setSync('wait','⏳');
+  const o={date:$('wd').value,animal_id:$('wa').value,weight_kg:parseFloat($('wk').value),notes:$('wno').value.trim()};
+  try{
+    if(eWid){const{error}=await sb.from('weights').update(o).eq('id',eWid);if(error)throw error}
+    else{const{error}=await sb.from('weights').insert(o);if(error)throw error}
+    cm('wm');eWid=null;await loadAll();
+  }catch(err){alert('Erreur: '+err.message);setSync('err','❌')}
+}
+
+function cDW(uuid,date,aid){
+  $('cft').innerHTML='Supprimer la pesée du <b style="color:#E85D5D">'+fd(date)+'</b> pour '+gN(aid)+' ?';
+  $('cfo').onclick=async()=>{setSync('wait','⏳');await sb.from('weights').delete().eq('id',uuid);cm('cfm');await loadAll()};
+  $('cfm').classList.remove('hd');
 }
 
 // ══════════════════════════════════════
