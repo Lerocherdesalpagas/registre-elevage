@@ -11,6 +11,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{--pri:#2AB5A0;--pri2:#1D9E8B;--pri3:#E8F8F5;--bg:#EFF7F5;--bg2:#fff;--bg3:#E0EDEA;--bg4:#C8DAD6;--tx:#1A2B2A;--tx2:#5A706D;--tx3:#8FA3A0;--r:#E85D5D;--r2:#FEF2F2;--a:#F5A623;--a2:#FFF8EC;--b:#4A90D9;--b2:#EEF4FC;--pur:#9B6DD7;--pur2:#F3EEFA;--sab:env(safe-area-inset-bottom,0px);--sat:env(safe-area-inset-top,0px);--sh:0 4px 16px rgba(42,181,160,.1),0 1px 4px rgba(0,0,0,.03)}
@@ -58,6 +60,9 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 .tg{display:inline-block;padding:4px 10px;border-radius:10px;font-size:10px;font-weight:800}
 .tc{background:var(--b2);color:var(--b)}.tv{background:var(--a2);color:#C8850F}
 .tvac{background:var(--pur2);color:var(--pur)}.to{background:var(--bg3);color:var(--tx3)}
+.sts{display:inline-block;padding:3px 8px;border-radius:8px;font-size:9px;font-weight:800;text-transform:uppercase}
+.s-actif{background:#E8F8F5;color:#1D9E8B}.s-vendu{background:#FFF8EC;color:#C8850F}.s-donne{background:var(--b2);color:var(--b)}.s-decede{background:#F1F1F1;color:#888}.s-perdu{background:var(--r2);color:var(--r)}
+.aprof{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--bg3);flex-shrink:0}
 .hcard{padding:14px 16px;position:relative}.hc-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .hc-date{color:var(--tx3);font-size:11px;font-weight:800;background:var(--bg);padding:2px 8px;border-radius:8px}.hc-name{font-weight:800;font-size:13px}
 .hc-det{font-size:11px;color:var(--tx2);line-height:1.5;margin-top:6px;font-weight:600}
@@ -125,6 +130,7 @@ body:not(.adm) .np{display:none!important}
 <div class="bkp">
 <button class="btn bs2 bsm" onclick="exportData()">📥 Exporter JSON</button>
 <button class="btn bs2 bsm" onclick="exportCSV()">📊 Exporter CSV</button>
+<button class="btn bs2 bsm" onclick="exportPDF()">📄 Registre PDF</button>
 <button class="btn bs2 bsm np" onclick="$('importIn').click()">📤 Importer</button>
 </div>
 <input type="file" id="importIn" accept=".json" style="display:none" onchange="importData(event)">
@@ -135,6 +141,7 @@ body:not(.adm) .np{display:none!important}
 <div class="tb"><h1>Animaux</h1>
 <div class="tba">
 <select id="fsp" class="btn bsm bs2" onchange="rA()" style="font-size:12px"><option value="all">Tous</option></select>
+<select id="fst" class="btn bsm bs2" onchange="rA()" style="font-size:12px"><option value="all">Statuts</option><option value="Actif">✅ Actifs</option><option value="inactive">❌ Inactifs</option></select>
 <button class="btn bsm bp np" onclick="oAM()">＋</button></div></div>
 <div id="alist"><div style="color:var(--tx3);text-align:center;padding:30px">Chargement...</div></div>
 </div>
@@ -170,11 +177,19 @@ body:not(.adm) .np{display:none!important}
 <div id="am" class="mo hd" onclick="cm('am')"><div class="mdl" onclick="event.stopPropagation()">
 <div class="mdh"><h2 id="amt">Nouvel animal</h2><button class="bi" onclick="cm('am')">✕</button></div>
 <form onsubmit="sA(event)">
+<div style="text-align:center;margin-bottom:12px">
+<div id="aPhotoPreview" style="width:80px;height:80px;border-radius:50%;background:var(--bg3);margin:0 auto 8px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px;cursor:pointer" onclick="$('aPhotoIn').click()"><span id="aPhotoEmoji">🐾</span></div>
+<button type="button" class="btn bsm bs2" onclick="$('aPhotoIn').click()" style="font-size:11px">📷 Photo de profil</button>
+<input type="file" id="aPhotoIn" accept="image/*" style="display:none" onchange="previewAnimalPhoto(event)">
+</div>
 <div class="fr"><div class="fi fh"><label>N° Animal</label><input id="ai" required></div><div class="fi fh"><label>Nom</label><input id="an" required></div></div>
 <div class="fr"><div class="fi fh"><label>Espèce</label><input id="as" list="speciesList" required placeholder="Caprin, Camélidé, Canin..."><datalist id="speciesList"><option value="Caprin"><option value="Camélidé"><option value="Canin"><option value="Félin"><option value="Équin"><option value="Ovin"><option value="Bovin"><option value="Volaille"><option value="Porcin"><option value="Lapin"></datalist></div><div class="fi fh"><label>Race</label><input id="ab"></div></div>
 <div class="fr"><div class="fi fh"><label>Sexe</label><select id="ax"><option value="M">Mâle</option><option value="F">Femelle</option></select></div><div class="fi fh"><label>Couleur</label><input id="ac"></div></div>
+<div class="fi"><label>N° Identification (puce / boucle)</label><input id="aid" placeholder="Ex: FR 85 1234 5678"></div>
 <div class="fr"><div class="fi fh"><label>Naissance</label><input type="date" id="adb"></div><div class="fi fh"><label>Entrée</label><input type="date" id="ade"></div></div>
 <div class="fi"><label>Origine</label><input id="ao"></div>
+<div class="fr"><div class="fi fh"><label>Statut</label><select id="ast" onchange="toggleExitFields()"><option value="Actif">✅ Actif</option><option value="Vendu">💰 Vendu</option><option value="Donné">🎁 Donné</option><option value="Décédé">✝ Décédé</option><option value="Perdu">❓ Perdu</option></select></div><div class="fi fh" id="exitDateWrap" style="display:none"><label>Date de sortie</label><input type="date" id="aed"></div></div>
+<div class="fi" id="exitReasonWrap" style="display:none"><label>Motif / Détails sortie</label><input id="aer" placeholder="Ex: vendu à M. Dupont"></div>
 <div class="mdf"><button type="button" class="btn bs2" onclick="cm('am')">Annuler</button><button type="submit" class="btn bp" id="asb">Ajouter</button></div>
 </form></div></div>
 
@@ -238,7 +253,7 @@ let pendingPhotos=[], existingPhotos=[], removedPhotos=[];
 // ══════════════════════════════════════
 // 🔒 SÉCURITÉ — CODE PIN ADMIN
 // Changez ce code pour sécuriser l'accès
-const ADMIN_PIN = '2692';
+const ADMIN_PIN = '2025';
 // ══════════════════════════════════════
 let isAdmin = localStorage.getItem('registre_admin')==='1';
 
@@ -281,8 +296,8 @@ function exportData(){
 
 function exportCSV(){
   // Animals CSV
-  let csv='--- ANIMAUX ---\nID;Nom;Espèce;Race;Sexe;Couleur;Naissance;Entrée;Origine\n';
-  animals.forEach(a=>{csv+=[a.animal_id,a.name,a.species,a.breed,a.sex,a.color,a.birth_date,a.entry_date,a.origin].join(';')+'\n'});
+  let csv='--- ANIMAUX ---\nID;Nom;Espèce;Race;Sexe;Couleur;Identification;Naissance;Entrée;Origine;Statut;Date sortie;Motif sortie\n';
+  animals.forEach(a=>{csv+=[a.animal_id,a.name,a.species,a.breed,a.sex,a.color,a.identification||'',a.birth_date,a.entry_date,a.origin,a.status||'Actif',a.exit_date||'',a.exit_reason||''].join(';')+'\n'});
   // Health CSV
   csv+='\n--- SUIVIS SANITAIRES ---\nDate;Animal;Type;Produit;Dose;Voie;Lot;Délai;Intervenant;Notes;Rappel Vaccin;G.Douve;Douve;Cocc;Strongles P;Strongles I\n';
   health.forEach(h=>{csv+=[h.date,gN(h.animal_id),h.type,h.product,h.dose,h.route,h.lot,h.withdrawal,h.practitioner,h.notes,h.next_vaccine_date||'',h.g_douve,h.douve,h.cocc,h.strongles_p,h.strongles_i].join(';')+'\n'});
@@ -316,6 +331,101 @@ async function importData(e){
     await loadAll();
   }catch(err){alert('❌ Erreur import: '+err.message);setSync('err','❌')}
   e.target.value='';
+}
+
+// ══════════════════════════════════════
+// 📄 EXPORT PDF REGISTRE LÉGAL
+// ══════════════════════════════════════
+function exportPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF('p','mm','a4');
+  const W=210,M=14,pw=W-M*2;
+  const now=new Date().toLocaleDateString('fr-FR');
+  let y=20;
+
+  function addHeader(){
+    doc.setFont('helvetica','bold');doc.setFontSize(16);
+    doc.text('Le Rocher des Alpagas',M,y);
+    doc.setFontSize(10);doc.setFont('helvetica','normal');
+    doc.text('Registre d\'elevage — Edite le '+now,M,y+6);
+    y+=16;
+    doc.setDrawColor(42,181,160);doc.setLineWidth(.5);doc.line(M,y,W-M,y);y+=6;
+  }
+  function checkPage(need){if(y+need>275){doc.addPage();y=20}}
+
+  addHeader();
+
+  // 1. LISTE DES ANIMAUX
+  doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text('1. Inventaire des animaux',M,y);y+=8;
+
+  const aData=animals.map(a=>[
+    a.animal_id,a.name,a.species,a.breed,
+    a.sex==='M'?'Male':'Femelle',
+    a.identification||'',
+    a.birth_date?fd(a.birth_date):'',
+    a.status||'Actif'
+  ]);
+  doc.autoTable({
+    startY:y,margin:{left:M,right:M},
+    head:[['ID','Nom','Espece','Race','Sexe','Identification','Naissance','Statut']],
+    body:aData,
+    styles:{fontSize:7,cellPadding:2,font:'helvetica'},
+    headStyles:{fillColor:[42,181,160],textColor:255,fontStyle:'bold',fontSize:7},
+    alternateRowStyles:{fillColor:[245,249,248]},
+    columnStyles:{0:{cellWidth:12},5:{cellWidth:28}},
+  });
+  y=doc.lastAutoTable.finalY+10;
+
+  // 2. SUIVI SANITAIRE
+  checkPage(20);
+  doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text('2. Suivi sanitaire',M,y);y+=8;
+
+  const sortedH=[...health].sort((a,b)=>a.date.localeCompare(b.date));
+  const hData=sortedH.map(h=>{
+    let det='';
+    if(h.type==='Copro')det='GD:'+h.g_douve+' D:'+h.douve+' C:'+h.cocc+' SP:'+h.strongles_p+' SI:'+h.strongles_i;
+    else{if(h.product)det+=h.product;if(h.dose)det+=' '+h.dose;if(h.lot)det+=' L:'+h.lot}
+    return[fd(h.date),gN(h.animal_id),h.type,det,h.practitioner||'',h.notes||''];
+  });
+  doc.autoTable({
+    startY:y,margin:{left:M,right:M},
+    head:[['Date','Animal','Type','Details','Intervenant','Notes']],
+    body:hData,
+    styles:{fontSize:6.5,cellPadding:1.5,font:'helvetica',overflow:'linebreak'},
+    headStyles:{fillColor:[42,181,160],textColor:255,fontStyle:'bold',fontSize:7},
+    alternateRowStyles:{fillColor:[245,249,248]},
+    columnStyles:{0:{cellWidth:18},2:{cellWidth:18},3:{cellWidth:45}},
+  });
+  y=doc.lastAutoTable.finalY+10;
+
+  // 3. SUIVI DES POIDS
+  if(weights.length){
+    checkPage(20);
+    doc.setFont('helvetica','bold');doc.setFontSize(13);
+    doc.text('3. Suivi des poids',M,y);y+=8;
+    const sortedW=[...weights].sort((a,b)=>a.date.localeCompare(b.date));
+    const wData=sortedW.map(w=>[fd(w.date),gN(w.animal_id),w.weight_kg+' kg',w.notes||'']);
+    doc.autoTable({
+      startY:y,margin:{left:M,right:M},
+      head:[['Date','Animal','Poids','Notes']],
+      body:wData,
+      styles:{fontSize:7,cellPadding:2,font:'helvetica'},
+      headStyles:{fillColor:[42,181,160],textColor:255,fontStyle:'bold',fontSize:7},
+      alternateRowStyles:{fillColor:[245,249,248]},
+    });
+  }
+
+  // Footer on all pages
+  const pages=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(150);
+    doc.text('Le Rocher des Alpagas — Registre d\'elevage — Page '+i+'/'+pages,W/2,290,{align:'center'});
+    doc.setTextColor(0);
+  }
+
+  doc.save('registre-elevage-'+today()+'.pdf');
 }
 
 // ══════════════════════════════════════
@@ -416,32 +526,80 @@ function rHome(){
 // ANIMALS
 // ══════════════════════════════════════
 function rA(){
-  const f=$('fsp').value;const list=f==='all'?animals:animals.filter(a=>a.species===f);
+  const f=$('fsp').value;let list=f==='all'?animals:animals.filter(a=>a.species===f);
+  const fs=$('fst').value;
+  if(fs==='Actif')list=list.filter(a=>(a.status||'Actif')==='Actif');
+  else if(fs==='inactive')list=list.filter(a=>a.status&&a.status!=='Actif');
   $('alist').innerHTML=list.map(a=>{
     const recs=health.filter(h=>h.animal_id===a.animal_id).sort((x,y)=>y.date.localeCompare(x.date));
+    const wrecs=weights.filter(w=>w.animal_id===a.animal_id).sort((x,y)=>y.date.localeCompare(x.date));
     const op=exA===a.animal_id,em=gE(a.species);
+    const st=a.status||'Actif';const sc=statusClass(st);
+    const photoHtml=a.photo?'<img class="aprof" src="'+photoUrl(a.photo)+'">':'<span class="em">'+em+'</span>';
+    const inactive=st!=='Actif'?' style="opacity:.6"':'';
     let det='';if(op){
-      det='<div class="adtl"><div class="adtl-r">'+(a.birth_date?'<span>Né(e) <b>'+fd(a.birth_date)+'</b></span>':'')+(a.entry_date?'<span>Entré(e) <b>'+fd(a.entry_date)+'</b></span>':'')+(a.origin?'<span>'+a.origin+'</span>':'')+(a.color?'<span>'+a.color+'</span>':'')+'</div>'+
+      det='<div class="adtl"><div class="adtl-r">'
+        +(a.identification?'<span>🏷 <b>'+a.identification+'</b></span>':'')
+        +(a.birth_date?'<span>Né(e) <b>'+fd(a.birth_date)+'</b></span>':'')
+        +(a.entry_date?'<span>Entré(e) <b>'+fd(a.entry_date)+'</b></span>':'')
+        +(a.origin?'<span>'+a.origin+'</span>':'')
+        +(a.color?'<span>'+a.color+'</span>':'')
+        +(wrecs.length?'<span>⚖️ <b>'+wrecs[0].weight_kg+' kg</b> ('+fd(wrecs[0].date)+')</span>':'')
+        +(st!=='Actif'&&a.exit_date?'<span>Sortie <b>'+fd(a.exit_date)+'</b>'+(a.exit_reason?' — '+a.exit_reason:'')+'</span>':'')
+        +'</div>'+
         (recs.length?recs.slice(0,5).map(r=>{const tc=r.type==='Copro'?'tc':r.type==='Vermifuge'?'tv':r.type==='Vaccination'?'tvac':'to';let inf=r.type==='Copro'?'GD:'+(r.g_douve??0)+' D:'+(r.douve??0)+' C:'+(r.cocc??0)+' SP:'+(r.strongles_p??0)+' SI:'+(r.strongles_i??0):(r.product||'')+(r.next_vaccine_date?' → rappel '+fd(r.next_vaccine_date):'');return'<div class="adtl-h"><span style="color:var(--tx3);width:62px;flex-shrink:0">'+fd(r.date)+'</span><span class="tg '+tc+'">'+r.type+'</span><span style="color:var(--tx2);font-size:10px">'+inf+'</span></div>'}).join(''):'<p style="color:var(--tx3);font-size:11px;padding:6px 0">Aucun suivi</p>')+'</div>'}
-    return'<div class="cd acard"><div class="ar" onclick="exA=exA===\''+a.animal_id+'\'?null:\''+a.animal_id+'\';rA()"><span style="color:var(--tx3);font-size:12px">'+(op?'▾':'▸')+'</span><span class="em">'+em+'</span><div class="inf"><div class="nm">'+a.name+' <span style="color:var(--tx3);font-weight:400;font-size:12px">('+a.animal_id+')</span></div><div class="mt">'+a.breed+' • '+(a.sex==='M'?'♂':'♀')+'</div></div><span style="color:var(--tx3);font-size:10px">'+recs.length+'</span><button class="bi np" onclick="event.stopPropagation();oAM(\''+a.id+'\')">✎</button><button class="bi np" onclick="event.stopPropagation();cDA(\''+a.id+'\',\''+a.name+'\',\''+a.animal_id+'\')">🗑</button></div>'+det+'</div>'}).join('')||'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun animal</p>';
+    return'<div class="cd acard"'+inactive+'><div class="ar" onclick="exA=exA===\''+a.animal_id+'\'?null:\''+a.animal_id+'\';rA()"><span style="color:var(--tx3);font-size:12px">'+(op?'▾':'▸')+'</span>'+photoHtml+'<div class="inf"><div class="nm">'+a.name+' <span style="color:var(--tx3);font-weight:400;font-size:12px">('+a.animal_id+')</span> <span class="sts '+sc+'">'+st+'</span></div><div class="mt">'+a.breed+' • '+(a.sex==='M'?'♂':'♀')+(wrecs.length?' • '+wrecs[0].weight_kg+'kg':'')+'</div></div><span style="color:var(--tx3);font-size:10px">'+recs.length+'</span><button class="bi np" onclick="event.stopPropagation();oAM(\''+a.id+'\')">✎</button><button class="bi np" onclick="event.stopPropagation();cDA(\''+a.id+'\',\''+a.name+'\',\''+a.animal_id+'\')">🗑</button></div>'+det+'</div>'}).join('')||'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun animal</p>';
 }
 
+let pendingAnimalPhoto=null;
+
+function toggleExitFields(){
+  const st=$('ast').value;const show=st!=='Actif';
+  $('exitDateWrap').style.display=show?'':'none';
+  $('exitReasonWrap').style.display=show?'':'none';
+}
+
+function previewAnimalPhoto(e){
+  const f=e.target.files[0];if(!f)return;
+  pendingAnimalPhoto=f;
+  const r=new FileReader();r.onload=ev=>{
+    const pp=$('aPhotoPreview');pp.innerHTML='<img src="'+ev.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+  };r.readAsDataURL(f);e.target.value='';
+}
+
+function statusClass(s){return({'Actif':'s-actif','Vendu':'s-vendu','Donné':'s-donne','Décédé':'s-decede','Perdu':'s-perdu'})[s||'Actif']||'s-actif'}
+
 function oAM(uuid){
-  const a=uuid?animals.find(x=>x.id===uuid):null;eAid=uuid||null;
+  const a=uuid?animals.find(x=>x.id===uuid):null;eAid=uuid||null;pendingAnimalPhoto=null;
   $('amt').textContent=a?'Modifier':'Nouvel animal';$('asb').textContent=a?'OK':'Ajouter';
   $('ai').value=a?.animal_id||'';$('ai').disabled=!!a;$('an').value=a?.name||'';
   $('as').value=a?.species||'Caprin';$('ab').value=a?.breed||'';$('ax').value=a?.sex||'M';
-  $('ac').value=a?.color||'';$('adb').value=a?.birth_date||'';$('ade').value=a?.entry_date||'';$('ao').value=a?.origin||'';
-  $('am').classList.remove('hd');
+  $('ac').value=a?.color||'';$('aid').value=a?.identification||'';
+  $('adb').value=a?.birth_date||'';$('ade').value=a?.entry_date||'';$('ao').value=a?.origin||'';
+  $('ast').value=a?.status||'Actif';$('aed').value=a?.exit_date||'';$('aer').value=a?.exit_reason||'';
+  // Photo preview
+  const pp=$('aPhotoPreview');
+  if(a?.photo){pp.innerHTML='<img src="'+photoUrl(a.photo)+'" style="width:100%;height:100%;object-fit:cover">'}
+  else{pp.innerHTML='<span id="aPhotoEmoji">'+gE(a?.species||'')+'</span>'}
+  toggleExitFields();$('am').classList.remove('hd');
 }
 
 async function sA(e){
   e.preventDefault();setSync('wait','⏳');
-  const o={animal_id:$('ai').value.trim(),name:$('an').value.trim(),species:$('as').value,breed:$('ab').value.trim(),sex:$('ax').value,color:$('ac').value.trim(),birth_date:$('adb').value,entry_date:$('ade').value,origin:$('ao').value.trim()};
   try{
+    let photoPath=eAid?animals.find(x=>x.id===eAid)?.photo||'':'';
+    if(pendingAnimalPhoto){
+      const compressed=await compressImg(pendingAnimalPhoto,600,0.8);
+      const path='animals/'+uid()+'.jpg';
+      const{error}=await sb.storage.from('photos').upload(path,compressed,{contentType:'image/jpeg'});
+      if(error)throw error;
+      photoPath=path;
+    }
+    const st=$('ast').value;
+    const o={animal_id:$('ai').value.trim(),name:$('an').value.trim(),species:$('as').value,breed:$('ab').value.trim(),sex:$('ax').value,color:$('ac').value.trim(),identification:$('aid').value.trim(),birth_date:$('adb').value,entry_date:$('ade').value,origin:$('ao').value.trim(),status:st,exit_date:st!=='Actif'?$('aed').value:'',exit_reason:st!=='Actif'?$('aer').value.trim():'',photo:photoPath};
     if(eAid){const{error}=await sb.from('animals').update(o).eq('id',eAid);if(error)throw error}
     else{const{error}=await sb.from('animals').insert(o);if(error)throw error}
-    cm('am');eAid=null;await loadAll();
+    pendingAnimalPhoto=null;cm('am');eAid=null;await loadAll();
   }catch(err){alert('Erreur: '+err.message);setSync('err','❌')}
 }
 
