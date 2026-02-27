@@ -63,6 +63,12 @@ h1{font-size:21px;font-weight:900;color:var(--tx)}
 .sts{display:inline-block;padding:3px 8px;border-radius:8px;font-size:9px;font-weight:800;text-transform:uppercase}
 .s-actif{background:#E8F8F5;color:#1D9E8B}.s-vendu{background:#FFF8EC;color:#C8850F}.s-donne{background:var(--b2);color:var(--b)}.s-decede{background:#F1F1F1;color:#888}.s-perdu{background:var(--r2);color:var(--r)}
 .aprof{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--bg3);flex-shrink:0}
+.lchk{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:10px;background:var(--bg);border:2px solid var(--bg3);cursor:pointer;font-size:12px;font-weight:700;transition:all .2s;user-select:none}
+.lchk.sel{border-color:var(--pri);background:var(--pri3)}
+.lchk input{display:none}
+.loc-card{padding:14px 16px;display:flex;align-items:flex-start;gap:12px}
+.loc-dot{width:12px;height:12px;border-radius:50%;background:var(--pri);flex-shrink:0;margin-top:4px}
+.loc-info{flex:1;min-width:0}
 .hcard{padding:14px 16px;position:relative}.hc-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .hc-date{color:var(--tx3);font-size:11px;font-weight:800;background:var(--bg);padding:2px 8px;border-radius:8px}.hc-name{font-weight:800;font-size:13px}
 .hc-det{font-size:11px;color:var(--tx2);line-height:1.5;margin-top:6px;font-weight:600}
@@ -113,6 +119,7 @@ body:not(.adm) .np{display:none!important}
 <button data-p="health" onclick="go('health')"><span class="ic">💉</span>Sanitaire</button>
 <button data-p="charts" onclick="go('charts')"><span class="ic">📊</span>Copro</button>
 <button data-p="weight" onclick="go('weight')"><span class="ic">⚖️</span>Poids</button>
+<button data-p="locs" onclick="go('locs')"><span class="ic">📍</span>Parcelles</button>
 </nav>
 
 <main>
@@ -171,7 +178,29 @@ body:not(.adm) .np{display:none!important}
 <div id="wcon"></div>
 <div id="wlist"></div>
 </div>
+
+<div id="p-locs" class="pg hd">
+<div class="tb"><h1>📍 Écopâturage</h1>
+<div class="tba">
+<select id="laf" class="btn bsm bs2" onchange="rL()" style="font-size:12px"><option value="all">Toutes parcelles</option></select>
+<button class="btn bsm bp np" onclick="oLM()">＋ Mouvement</button></div></div>
+<div id="locSummary"></div>
+<div id="locList"></div>
+</div>
 </main>
+
+<!-- MODAL LOCALISATION -->
+<div id="lm" class="mo hd" onclick="cm('lm')"><div class="mdl" onclick="event.stopPropagation()">
+<div class="mdh"><h2 id="lmt">Nouveau mouvement</h2><button class="bi" onclick="cm('lm')">✕</button></div>
+<form onsubmit="sL(event)">
+<div class="fi"><label>Date du mouvement</label><input type="date" id="ld" required></div>
+<div class="fi"><label>Parcelle / Site</label><input id="ll" list="locsList" required placeholder="Ex: Parcelle Nord, Jardin Dupont..."><datalist id="locsList"></datalist></div>
+<div class="fi"><label>Animaux concernés</label>
+<div id="locAnimals" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
+</div>
+<div class="fi"><label>Notes</label><textarea id="lno" rows="2" placeholder="Client, durée prévue..."></textarea></div>
+<div class="mdf"><button type="button" class="btn bs2" onclick="cm('lm')">Annuler</button><button type="submit" class="btn bp" id="lsb">Enregistrer</button></div>
+</form></div></div>
 
 <!-- MODALS -->
 <div id="am" class="mo hd" onclick="cm('am')"><div class="mdl" onclick="event.stopPropagation()">
@@ -246,8 +275,8 @@ const cm=id=>$(id).classList.add('hd');
 const PAR=[{k:'g_douve',l:'G. Douve',c:'#E85D5D'},{k:'douve',l:'Douve',c:'#F5A623'},{k:'cocc',l:'Cocc',c:'#9B6DD7'},{k:'strongles_p',l:'Strongles P',c:'#2AB5A0'},{k:'strongles_i',l:'Strongles I',c:'#4A90D9'}];
 const EMOJI={'Caprin':'🐐','Camélidé':'🦙','Canin':'🐕','Félin':'🐈','Équin':'🐴','Ovin':'🐑','Bovin':'🐄','Volaille':'🐓','Porcin':'🐷','Lapin':'🐇'};
 
-let animals=[],health=[],weights=[];
-let CI={},WI={},eAid=null,eHid=null,eWid=null,exA=null,curPage='home';
+let animals=[],health=[],weights=[],locations=[];
+let CI={},WI={},eAid=null,eHid=null,eWid=null,eLid=null,exA=null,curPage='home';
 let pendingPhotos=[], existingPhotos=[], removedPhotos=[];
 
 // ══════════════════════════════════════
@@ -286,7 +315,7 @@ function toggleAdmin(){
 // 💾 SAUVEGARDE / RESTAURATION
 // ══════════════════════════════════════
 function exportData(){
-  const data={version:2,date:new Date().toISOString(),animals,health,weights};
+  const data={version:3,date:new Date().toISOString(),animals,health,weights,locations};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;
@@ -304,6 +333,8 @@ function exportCSV(){
   // Weights CSV
   csv+='\n--- POIDS ---\nDate;Animal;Poids (kg);Notes\n';
   weights.forEach(w=>{csv+=[w.date,gN(w.animal_id),w.weight_kg,w.notes].join(';')+'\n'});
+  csv+='\n--- LOCALISATIONS ---\nDate;Animal;Parcelle;Notes\n';
+  locations.forEach(l=>{csv+=[l.date,gN(l.animal_id),l.location,l.notes].join(';')+'\n'});
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;
@@ -320,6 +351,7 @@ async function importData(e){
     if(!data.animals||!data.health){alert('❌ Fichier invalide');return}
     setSync('wait','⏳ Import...');
     // Clear existing
+    await sb.from('locations').delete().neq('id','00000000-0000-0000-0000-000000000000');
     await sb.from('weights').delete().neq('id','00000000-0000-0000-0000-000000000000');
     await sb.from('health').delete().neq('id','00000000-0000-0000-0000-000000000000');
     await sb.from('animals').delete().neq('id','00000000-0000-0000-0000-000000000000');
@@ -327,6 +359,7 @@ async function importData(e){
     if(data.animals.length){const clean=data.animals.map(({id,...r})=>r);await sb.from('animals').insert(clean)}
     if(data.health.length){const clean=data.health.map(({id,...r})=>r);await sb.from('health').insert(clean)}
     if(data.weights&&data.weights.length){const clean=data.weights.map(({id,...r})=>r);await sb.from('weights').insert(clean)}
+    if(data.locations&&data.locations.length){const clean=data.locations.map(({id,...r})=>r);await sb.from('locations').insert(clean)}
     alert('✅ Import réussi ! '+data.animals.length+' animaux, '+data.health.length+' suivis'+(data.weights?' ,'+data.weights.length+' pesées':''));
     await loadAll();
   }catch(err){alert('❌ Erreur import: '+err.message);setSync('err','❌')}
@@ -415,6 +448,24 @@ function exportPDF(){
       headStyles:{fillColor:[42,181,160],textColor:255,fontStyle:'bold',fontSize:7},
       alternateRowStyles:{fillColor:[245,249,248]},
     });
+    y=doc.lastAutoTable.finalY+10;
+  }
+
+  // 4. LOCALISATIONS / ÉCOPÂTURAGE
+  if(locations.length){
+    checkPage(20);
+    doc.setFont('helvetica','bold');doc.setFontSize(13);
+    doc.text('4. Ecopaturage — Mouvements',M,y);y+=8;
+    const sortedL=[...locations].sort((a,b)=>a.date.localeCompare(b.date));
+    const lData=sortedL.map(l=>[fd(l.date),gN(l.animal_id),l.location,l.notes||'']);
+    doc.autoTable({
+      startY:y,margin:{left:M,right:M},
+      head:[['Date','Animal','Parcelle / Site','Notes']],
+      body:lData,
+      styles:{fontSize:7,cellPadding:2,font:'helvetica'},
+      headStyles:{fillColor:[42,181,160],textColor:255,fontStyle:'bold',fontSize:7},
+      alternateRowStyles:{fillColor:[245,249,248]},
+    });
   }
 
   // Footer on all pages
@@ -456,14 +507,15 @@ function compressImg(file,maxW=1200,quality=0.7){
 async function loadAll(){
   setSync('wait','⏳ Chargement...');
   try{
-    const[aRes,hRes,wRes]=await Promise.all([
+    const[aRes,hRes,wRes,lRes]=await Promise.all([
       sb.from('animals').select('*').order('name'),
       sb.from('health').select('*').order('date',{ascending:false}),
-      sb.from('weights').select('*').order('date',{ascending:false})
+      sb.from('weights').select('*').order('date',{ascending:false}),
+      sb.from('locations').select('*').order('date',{ascending:false})
     ]);
     if(aRes.error)throw aRes.error;
     if(hRes.error)throw hRes.error;
-    animals=aRes.data||[];health=hRes.data||[];weights=wRes.error?[]:wRes.data||[];
+    animals=aRes.data||[];health=hRes.data||[];weights=wRes.error?[]:wRes.data||[];locations=lRes.error?[]:lRes.data||[];
     setSync('ok','✓ Sync');
     updateSpeciesFilter();
     refresh();
@@ -478,12 +530,13 @@ async function loadAll(){
 function setupRealtime(){
   sb.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'animals'},()=>loadAll())
   .on('postgres_changes',{event:'*',schema:'public',table:'health'},()=>loadAll())
-  .on('postgres_changes',{event:'*',schema:'public',table:'weights'},()=>loadAll()).subscribe();
+  .on('postgres_changes',{event:'*',schema:'public',table:'weights'},()=>loadAll())
+  .on('postgres_changes',{event:'*',schema:'public',table:'locations'},()=>loadAll()).subscribe();
 }
 
 function refresh(){
   if(curPage==='home')rHome();if(curPage==='animals')rA();
-  if(curPage==='health')rH();if(curPage==='charts')rC();if(curPage==='weight')rW();
+  if(curPage==='health')rH();if(curPage==='charts')rC();if(curPage==='weight')rW();if(curPage==='locs')rL();
 }
 function updateSpeciesFilter(){
   const sp=[...new Set(animals.map(a=>a.species).filter(Boolean))].sort();
@@ -496,7 +549,7 @@ function updateSpeciesFilter(){
 function go(p){
   curPage=p;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
-  ['home','animals','health','charts','weight'].forEach(x=>$('p-'+x).classList.toggle('hd',x!==p));
+  ['home','animals','health','charts','weight','locs'].forEach(x=>$('p-'+x).classList.toggle('hd',x!==p));
   refresh();window.scrollTo(0,0);
 }
 
@@ -533,6 +586,7 @@ function rA(){
   $('alist').innerHTML=list.map(a=>{
     const recs=health.filter(h=>h.animal_id===a.animal_id).sort((x,y)=>y.date.localeCompare(x.date));
     const wrecs=weights.filter(w=>w.animal_id===a.animal_id).sort((x,y)=>y.date.localeCompare(x.date));
+    const curLoc=getCurLoc(a.animal_id);
     const op=exA===a.animal_id,em=gE(a.species);
     const st=a.status||'Actif';const sc=statusClass(st);
     const photoHtml=a.photo?'<img class="aprof" src="'+photoUrl(a.photo)+'">':'<span class="em">'+em+'</span>';
@@ -545,10 +599,11 @@ function rA(){
         +(a.origin?'<span>'+a.origin+'</span>':'')
         +(a.color?'<span>'+a.color+'</span>':'')
         +(wrecs.length?'<span>⚖️ <b>'+wrecs[0].weight_kg+' kg</b> ('+fd(wrecs[0].date)+')</span>':'')
+        +(curLoc?'<span>📍 <b>'+curLoc.location+'</b> depuis '+fd(curLoc.date)+'</span>':'')
         +(st!=='Actif'&&a.exit_date?'<span>Sortie <b>'+fd(a.exit_date)+'</b>'+(a.exit_reason?' — '+a.exit_reason:'')+'</span>':'')
         +'</div>'+
         (recs.length?recs.slice(0,5).map(r=>{const tc=r.type==='Copro'?'tc':r.type==='Vermifuge'?'tv':r.type==='Vaccination'?'tvac':'to';let inf=r.type==='Copro'?'GD:'+(r.g_douve??0)+' D:'+(r.douve??0)+' C:'+(r.cocc??0)+' SP:'+(r.strongles_p??0)+' SI:'+(r.strongles_i??0):(r.product||'')+(r.next_vaccine_date?' → rappel '+fd(r.next_vaccine_date):'');return'<div class="adtl-h"><span style="color:var(--tx3);width:62px;flex-shrink:0">'+fd(r.date)+'</span><span class="tg '+tc+'">'+r.type+'</span><span style="color:var(--tx2);font-size:10px">'+inf+'</span></div>'}).join(''):'<p style="color:var(--tx3);font-size:11px;padding:6px 0">Aucun suivi</p>')+'</div>'}
-    return'<div class="cd acard"'+inactive+'><div class="ar" onclick="exA=exA===\''+a.animal_id+'\'?null:\''+a.animal_id+'\';rA()"><span style="color:var(--tx3);font-size:12px">'+(op?'▾':'▸')+'</span>'+photoHtml+'<div class="inf"><div class="nm">'+a.name+' <span style="color:var(--tx3);font-weight:400;font-size:12px">('+a.animal_id+')</span> <span class="sts '+sc+'">'+st+'</span></div><div class="mt">'+a.breed+' • '+(a.sex==='M'?'♂':'♀')+(wrecs.length?' • '+wrecs[0].weight_kg+'kg':'')+'</div></div><span style="color:var(--tx3);font-size:10px">'+recs.length+'</span><button class="bi np" onclick="event.stopPropagation();oAM(\''+a.id+'\')">✎</button><button class="bi np" onclick="event.stopPropagation();cDA(\''+a.id+'\',\''+a.name+'\',\''+a.animal_id+'\')">🗑</button></div>'+det+'</div>'}).join('')||'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun animal</p>';
+    return'<div class="cd acard"'+inactive+'><div class="ar" onclick="exA=exA===\''+a.animal_id+'\'?null:\''+a.animal_id+'\';rA()"><span style="color:var(--tx3);font-size:12px">'+(op?'▾':'▸')+'</span>'+photoHtml+'<div class="inf"><div class="nm">'+a.name+' <span style="color:var(--tx3);font-weight:400;font-size:12px">('+a.animal_id+')</span> <span class="sts '+sc+'">'+st+'</span></div><div class="mt">'+a.breed+' • '+(a.sex==='M'?'♂':'♀')+(wrecs.length?' • '+wrecs[0].weight_kg+'kg':'')+(curLoc?' • 📍'+curLoc.location:'')+'</div></div><span style="color:var(--tx3);font-size:10px">'+recs.length+'</span><button class="bi np" onclick="event.stopPropagation();oAM(\''+a.id+'\')">✎</button><button class="bi np" onclick="event.stopPropagation();cDA(\''+a.id+'\',\''+a.name+'\',\''+a.animal_id+'\')">🗑</button></div>'+det+'</div>'}).join('')||'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun animal</p>';
 }
 
 let pendingAnimalPhoto=null;
@@ -609,6 +664,7 @@ function cDA(uuid,name,aid){
     setSync('wait','⏳');
     await sb.from('health').delete().eq('animal_id',aid);
     await sb.from('weights').delete().eq('animal_id',aid);
+    await sb.from('locations').delete().eq('animal_id',aid);
     await sb.from('animals').delete().eq('id',uuid);
     cm('cfm');await loadAll();
   };$('cfm').classList.remove('hd');
@@ -791,6 +847,81 @@ async function sW(e){
 function cDW(uuid,date,aid){
   $('cft').innerHTML='Supprimer la pesée du <b style="color:#E85D5D">'+fd(date)+'</b> pour '+gN(aid)+' ?';
   $('cfo').onclick=async()=>{setSync('wait','⏳');await sb.from('weights').delete().eq('id',uuid);cm('cfm');await loadAll()};
+  $('cfm').classList.remove('hd');
+}
+
+// ══════════════════════════════════════
+// 📍 LOCALISATION / ÉCOPÂTURAGE
+// ══════════════════════════════════════
+function getCurLoc(aid){
+  const recs=locations.filter(l=>l.animal_id===aid).sort((a,b)=>b.date.localeCompare(a.date));
+  return recs.length?recs[0]:null;
+}
+
+function rL(){
+  // Build parcelle list for filter
+  const allLocs=[...new Set(locations.map(l=>l.location).filter(Boolean))].sort();
+  const sel=$('laf'),cur=sel.value;
+  sel.innerHTML='<option value="all">Toutes parcelles</option>'+allLocs.map(l=>'<option value="'+l+'">📍 '+l+'</option>').join('');
+  if(cur)sel.value=cur;
+
+  // Summary: current location of each active animal
+  const active=animals.filter(a=>(a.status||'Actif')==='Actif');
+  const byLoc={};
+  active.forEach(a=>{
+    const loc=getCurLoc(a.animal_id);
+    const lname=loc?loc.location:'Non assigné';
+    if(!byLoc[lname])byLoc[lname]=[];
+    byLoc[lname].push(a);
+  });
+
+  let sumHtml='';
+  Object.entries(byLoc).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([loc,anims])=>{
+    const isNone=loc==='Non assigné';
+    sumHtml+='<div class="cd" style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:18px">'+(isNone?'❓':'📍')+'</span><span style="font-weight:800;font-size:14px">'+loc+'</span><span class="sts '+(isNone?'s-perdu':'s-actif')+'">'+anims.length+' animal'+(anims.length>1?'ux':'')+'</span></div><div style="display:flex;flex-wrap:wrap;gap:6px">'+anims.map(a=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:10px;background:var(--bg);font-size:12px;font-weight:700">'+gE(a.species)+' '+a.name+'</span>').join('')+'</div></div>';
+  });
+  $('locSummary').innerHTML=sumHtml;
+
+  // History list
+  let recs=[...locations];
+  if(sel.value!=='all')recs=recs.filter(l=>l.location===sel.value);
+  recs.sort((a,b)=>b.date.localeCompare(a.date));
+
+  $('locList').innerHTML='<h2 style="font-size:16px;font-weight:800;margin:16px 0 10px">Historique des mouvements</h2>'+
+    (recs.length?recs.slice(0,50).map(l=>{
+    return'<div class="cd loc-card"><div class="loc-dot"></div><div class="loc-info"><div style="font-weight:800;font-size:13px">📍 '+l.location+'</div><div style="font-size:11px;color:var(--tx3);font-weight:700;margin-top:2px">'+fd(l.date)+' — '+gN(l.animal_id)+'</div>'+(l.notes?'<div style="font-size:11px;color:var(--tx2);margin-top:3px">'+l.notes+'</div>':'')+'</div><span class="hc-act np"><button class="bi" onclick="cDL(\''+l.id+'\',\''+l.date+'\',\''+l.animal_id+'\')">🗑</button></span></div>'}).join(''):'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun mouvement enregistré</p>');
+}
+
+function oLM(){
+  eLid=null;
+  $('lmt').textContent='Nouveau mouvement';$('lsb').textContent='Enregistrer';
+  $('ld').value=today();$('ll').value='';$('lno').value='';
+  // Build datalist of known locations
+  const knownLocs=[...new Set(locations.map(l=>l.location).filter(Boolean))].sort();
+  $('locsList').innerHTML=knownLocs.map(l=>'<option value="'+l+'">').join('');
+  // Build animal checkboxes
+  const active=animals.filter(a=>(a.status||'Actif')==='Actif');
+  $('locAnimals').innerHTML=active.map(a=>'<label class="lchk" onclick="this.classList.toggle(\'sel\')"><input type="checkbox" value="'+a.animal_id+'">'+gE(a.species)+' '+a.name+'</label>').join('');
+  $('lm').classList.remove('hd');
+}
+
+async function sL(e){
+  e.preventDefault();setSync('wait','⏳');
+  const checked=[...$('locAnimals').querySelectorAll('input:checked')].map(i=>i.value);
+  if(!checked.length){alert('Sélectionnez au moins un animal');return}
+  const date=$('ld').value,loc=$('ll').value.trim(),notes=$('lno').value.trim();
+  if(!loc){alert('Indiquez une parcelle');return}
+  try{
+    const rows=checked.map(aid=>({date,animal_id:aid,location:loc,notes}));
+    const{error}=await sb.from('locations').insert(rows);
+    if(error)throw error;
+    cm('lm');eLid=null;await loadAll();
+  }catch(err){alert('Erreur: '+err.message);setSync('err','❌')}
+}
+
+function cDL(uuid,date,aid){
+  $('cft').innerHTML='Supprimer le mouvement du <b style="color:#E85D5D">'+fd(date)+'</b> pour '+gN(aid)+' ?';
+  $('cfo').onclick=async()=>{setSync('wait','⏳');await sb.from('locations').delete().eq('id',uuid);cm('cfm');await loadAll()};
   $('cfm').classList.remove('hd');
 }
 
