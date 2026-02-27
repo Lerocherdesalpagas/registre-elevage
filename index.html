@@ -181,9 +181,18 @@ body:not(.adm) .np{display:none!important}
 
 <div id="p-locs" class="pg hd">
 <div class="tb"><h1>📍 Écopâturage</h1>
-<div class="tba">
-<select id="laf" class="btn bsm bs2" onchange="rL()" style="font-size:12px"><option value="all">Toutes parcelles</option></select>
-<button class="btn bsm bp np" onclick="oLM()">＋ Mouvement</button></div></div>
+<button class="btn bsm bp np" onclick="oLM()">＋ Mouvement</button></div>
+<div class="cd" style="padding:12px 14px;margin-bottom:14px">
+<div style="font-weight:800;font-size:12px;color:var(--tx2);margin-bottom:8px">🔍 FILTRES</div>
+<div class="fr">
+<div class="fi fh"><label>📅 Date snapshot</label><input type="date" id="lfd" onchange="rL()"></div>
+<div class="fi fh"><label>📍 Parcelle</label><select id="laf" class="fi" onchange="rL()" style="padding:10px 12px;background:var(--bg);border:2px solid var(--bg3);border-radius:14px;font-weight:600;color:var(--tx)"><option value="all">Toutes</option></select></div>
+</div>
+<div class="fr">
+<div class="fi fh"><label>🐾 Espèce</label><select id="lsf" class="fi" onchange="rL()" style="padding:10px 12px;background:var(--bg);border:2px solid var(--bg3);border-radius:14px;font-weight:600;color:var(--tx)"><option value="all">Toutes</option></select></div>
+<div class="fi fh" style="display:flex;align-items:flex-end;padding-bottom:10px"><button class="btn bsm bs2" onclick="clearLocFilters()" style="width:100%">✕ Réinitialiser</button></div>
+</div>
+</div>
 <div id="locSummary"></div>
 <div id="locList"></div>
 </div>
@@ -853,43 +862,77 @@ function cDW(uuid,date,aid){
 // ══════════════════════════════════════
 // 📍 LOCALISATION / ÉCOPÂTURAGE
 // ══════════════════════════════════════
-function getCurLoc(aid){
-  const recs=locations.filter(l=>l.animal_id===aid).sort((a,b)=>b.date.localeCompare(a.date));
+function getCurLoc(aid,asOf){
+  const cutoff=asOf||'9999-12-31';
+  const recs=locations.filter(l=>l.animal_id===aid&&l.date<=cutoff).sort((a,b)=>b.date.localeCompare(a.date));
   return recs.length?recs[0]:null;
 }
 
+function clearLocFilters(){$('lfd').value='';$('laf').value='all';$('lsf').value='all';rL()}
+
 function rL(){
-  // Build parcelle list for filter
+  // Update parcelle filter options
   const allLocs=[...new Set(locations.map(l=>l.location).filter(Boolean))].sort();
   const sel=$('laf'),cur=sel.value;
-  sel.innerHTML='<option value="all">Toutes parcelles</option>'+allLocs.map(l=>'<option value="'+l+'">📍 '+l+'</option>').join('');
+  sel.innerHTML='<option value="all">Toutes</option>'+allLocs.map(l=>'<option value="'+l+'">'+l+'</option>').join('');
   if(cur)sel.value=cur;
 
-  // Summary: current location of each active animal
-  const active=animals.filter(a=>(a.status||'Actif')==='Actif');
-  const byLoc={};
-  active.forEach(a=>{
-    const loc=getCurLoc(a.animal_id);
+  // Update species filter
+  const allSp=[...new Set(animals.map(a=>a.species).filter(Boolean))].sort();
+  const ssf=$('lsf'),curs=ssf.value;
+  ssf.innerHTML='<option value="all">Toutes</option>'+allSp.map(s=>'<option value="'+s+'">'+gE(s)+' '+s+'</option>').join('');
+  if(curs)ssf.value=curs;
+
+  // Read filters
+  const dateSnap=$('lfd').value||null;
+  const fLoc=sel.value;
+  const fSp=ssf.value;
+
+  // Determine animals to show
+  let anims=animals.filter(a=>(a.status||'Actif')==='Actif');
+  if(fSp!=='all')anims=anims.filter(a=>a.species===fSp);
+
+  // Build snapshot: where was each animal at dateSnap (or today)
+  const snapshot={};
+  anims.forEach(a=>{
+    const loc=getCurLoc(a.animal_id,dateSnap);
     const lname=loc?loc.location:'Non assigné';
-    if(!byLoc[lname])byLoc[lname]=[];
-    byLoc[lname].push(a);
+    if(!snapshot[lname])snapshot[lname]={animals:[],lastDate:''};
+    snapshot[lname].animals.push(a);
+    if(loc&&loc.date>snapshot[lname].lastDate)snapshot[lname].lastDate=loc.date;
   });
 
-  let sumHtml='';
-  Object.entries(byLoc).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([loc,anims])=>{
-    const isNone=loc==='Non assigné';
-    sumHtml+='<div class="cd" style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:18px">'+(isNone?'❓':'📍')+'</span><span style="font-weight:800;font-size:14px">'+loc+'</span><span class="sts '+(isNone?'s-perdu':'s-actif')+'">'+anims.length+' animal'+(anims.length>1?'ux':'')+'</span></div><div style="display:flex;flex-wrap:wrap;gap:6px">'+anims.map(a=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:10px;background:var(--bg);font-size:12px;font-weight:700">'+gE(a.species)+' '+a.name+'</span>').join('')+'</div></div>';
-  });
+  // Filter by parcelle if set
+  let visibleLocs=Object.entries(snapshot);
+  if(fLoc!=='all')visibleLocs=visibleLocs.filter(([loc])=>loc===fLoc);
+
+  // Summary title
+  const titleDate=dateSnap?'au '+fd(dateSnap):'aujourd\'hui';
+  let sumHtml='<div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--tx2)">📍 Répartition '+titleDate+'</div>';
+
+  if(!visibleLocs.length){
+    sumHtml+='<div class="cd" style="text-align:center;color:var(--tx3);padding:20px">Aucun animal trouvé avec ces filtres</div>';
+  }else{
+    visibleLocs.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([loc,data])=>{
+      const isNone=loc==='Non assigné';
+      const count=data.animals.length;
+      sumHtml+='<div class="cd" style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:18px">'+(isNone?'❓':'📍')+'</span><div style="flex:1"><span style="font-weight:800;font-size:14px">'+loc+'</span><br><span style="font-size:11px;color:var(--tx3);font-weight:600">'+count+' animal'+(count>1?'ux':'')+(!isNone&&data.lastDate?' — depuis '+fd(data.lastDate):'')+'</span></div></div><div style="display:flex;flex-wrap:wrap;gap:6px">'+data.animals.map(a=>{
+        const w=weights.filter(x=>x.animal_id===a.animal_id).sort((x,y)=>y.date.localeCompare(x.date));
+        return'<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:10px;background:var(--bg);font-size:12px;font-weight:700">'+gE(a.species)+' '+a.name+(w.length?' <span style="color:var(--tx3);font-size:10px">'+w[0].weight_kg+'kg</span>':'')+'</span>'}).join('')+'</div></div>';
+    });
+  }
   $('locSummary').innerHTML=sumHtml;
 
-  // History list
-  let recs=[...locations];
-  if(sel.value!=='all')recs=recs.filter(l=>l.location===sel.value);
-  recs.sort((a,b)=>b.date.localeCompare(a.date));
+  // History list — filtered
+  let recs=[...locations].sort((a,b)=>b.date.localeCompare(a.date));
+  if(fLoc!=='all')recs=recs.filter(l=>l.location===fLoc);
+  if(fSp!=='all'){const ids=new Set(animals.filter(a=>a.species===fSp).map(a=>a.animal_id));recs=recs.filter(l=>ids.has(l.animal_id))}
+  if(dateSnap)recs=recs.filter(l=>l.date<=dateSnap);
 
-  $('locList').innerHTML='<h2 style="font-size:16px;font-weight:800;margin:16px 0 10px">Historique des mouvements</h2>'+
-    (recs.length?recs.slice(0,50).map(l=>{
-    return'<div class="cd loc-card"><div class="loc-dot"></div><div class="loc-info"><div style="font-weight:800;font-size:13px">📍 '+l.location+'</div><div style="font-size:11px;color:var(--tx3);font-weight:700;margin-top:2px">'+fd(l.date)+' — '+gN(l.animal_id)+'</div>'+(l.notes?'<div style="font-size:11px;color:var(--tx2);margin-top:3px">'+l.notes+'</div>':'')+'</div><span class="hc-act np"><button class="bi" onclick="cDL(\''+l.id+'\',\''+l.date+'\',\''+l.animal_id+'\')">🗑</button></span></div>'}).join(''):'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun mouvement enregistré</p>');
+  $('locList').innerHTML='<h2 style="font-size:16px;font-weight:800;margin:16px 0 10px">Historique des mouvements'+(recs.length?' <span style="color:var(--tx3);font-weight:600;font-size:13px">('+recs.length+')</span>':'')+'</h2>'+
+    (recs.length?recs.slice(0,60).map(l=>{
+    const a=gA(l.animal_id);const em=a?gE(a.species):'🐾';
+    return'<div class="cd loc-card"><div class="loc-dot"></div><div class="loc-info"><div style="font-weight:800;font-size:13px">📍 '+l.location+'</div><div style="font-size:11px;color:var(--tx3);font-weight:700;margin-top:2px">'+fd(l.date)+' — '+em+' '+gN(l.animal_id)+'</div>'+(l.notes?'<div style="font-size:11px;color:var(--tx2);margin-top:3px">'+l.notes+'</div>':'')+'</div><span class="hc-act np"><button class="bi" onclick="cDL(\''+l.id+'\',\''+l.date+'\',\''+l.animal_id+'\')">🗑</button></span></div>'}).join(''):'<p style="color:var(--tx3);text-align:center;padding:20px">Aucun mouvement trouvé</p>');
 }
 
 function oLM(){
